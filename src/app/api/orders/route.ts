@@ -65,26 +65,35 @@ export async function GET() {
 
     if (!error && dbOrders && dbOrders.length > 0) {
       // Map database schema to frontend LiveOrder format
-      const formatted: LiveOrder[] = dbOrders.map((o) => ({
-        id: o.id,
-        orderNumber: o.order_number || `#AB-${o.id.slice(0, 4)}`,
-        customerName: o.customer_name || "Ambikapur Customer",
-        customerPhone: o.customer_phone || "9876543210",
-        deliveryArea: o.delivery_address || "Ambikapur Center",
-        restaurantName: o.restaurant_name || "The Royal Kitchen",
-        items: o.items || [{ name: "Handi Special Biryani", qty: 1, price: o.total_amount || 320 }],
-        itemTotal: Number(o.item_total || o.total_amount - 25),
-        deliveryFee: Number(o.delivery_fee || 20),
-        platformFee: Number(o.platform_fee || 5),
-        totalAmount: Number(o.total_amount),
-        paymentMethod: o.payment_method || "COD",
-        paymentStatus: o.payment_status || "pending",
-        status: o.status || "placed",
-        riderName: o.rider_name || null,
-        riderId: o.rider_id || null,
-        createdAt: o.created_at,
-        prepTimeMinutes: o.prep_time_minutes || 20,
-      }));
+      const formatted: LiveOrder[] = dbOrders.map((o) => {
+        // Map ready_for_pickup to ready for frontend consistency
+        let frontendStatus: LiveOrder["status"] = "placed";
+        if (o.status === "ready_for_pickup") frontendStatus = "ready";
+        else if (["placed", "preparing", "ready", "rider_assigned", "picked_up", "delivered", "cancelled"].includes(o.status)) {
+          frontendStatus = o.status as LiveOrder["status"];
+        }
+
+        return {
+          id: o.id,
+          orderNumber: o.order_number || `#AB-${o.id.slice(0, 4)}`,
+          customerName: o.customer_name || "Ambikapur Customer",
+          customerPhone: o.customer_phone || "9876543210",
+          deliveryArea: o.delivery_address || "Ambikapur Center",
+          restaurantName: "The Royal Kitchen",
+          items: [{ name: "Handi Special Dum Biryani", qty: 1, price: Number(o.item_total || 320), isVeg: false }],
+          itemTotal: Number(o.item_total || 320),
+          deliveryFee: Number(o.delivery_fee || 20),
+          platformFee: Number(o.platform_fee || 5),
+          totalAmount: Number(o.total_amount || 345),
+          paymentMethod: (o.payment_method as "COD" | "UPI") || "COD",
+          paymentStatus: (o.payment_status as "pending" | "completed") || "pending",
+          status: frontendStatus,
+          riderName: o.rider_name || (frontendStatus === "picked_up" ? "Ramesh Kumar" : null),
+          riderId: o.rider_id || null,
+          createdAt: o.created_at,
+          prepTimeMinutes: 20,
+        };
+      });
 
       return NextResponse.json({
         success: true,
@@ -135,12 +144,12 @@ export async function POST(req: Request) {
 
     // Attempt saving to Supabase Postgres as well
     try {
-      await supabase.from("orders").insert({
+      const { data: dbCreated, error: dbErr } = await supabase.from("orders").insert({
         order_number: orderNum,
+        restaurant_id: "11111111-1111-1111-1111-111111111111", // The Royal Kitchen default
         customer_name: newOrder.customerName,
         customer_phone: newOrder.customerPhone,
         delivery_address: newOrder.deliveryArea,
-        restaurant_name: newOrder.restaurantName,
         item_total: newOrder.itemTotal,
         delivery_fee: newOrder.deliveryFee,
         platform_fee: newOrder.platformFee,
@@ -148,8 +157,12 @@ export async function POST(req: Request) {
         payment_method: newOrder.paymentMethod,
         payment_status: newOrder.paymentStatus,
         status: "placed",
-        prep_time_minutes: 20,
-      });
+      }).select();
+
+      if (dbCreated && dbCreated[0]) {
+        newOrder.id = dbCreated[0].id;
+      }
+      if (dbErr) console.warn("Supabase insert notice:", dbErr.message);
     } catch (e) {
       console.warn("Supabase insert notice:", e);
     }
@@ -190,15 +203,20 @@ export async function PATCH(req: Request) {
       return o;
     });
 
+    // Map status for Supabase database enum constraint
+    let dbStatus = status;
+    if (status === "ready") {
+      dbStatus = "ready_for_pickup";
+    }
+
     // Attempt updating in Supabase
     try {
+      const updatePayload: Record<string, any> = {};
+      if (dbStatus) updatePayload.status = dbStatus;
+
       await supabase
         .from("orders")
-        .update({
-          ...(status ? { status } : {}),
-          ...(riderName !== undefined ? { rider_name: riderName } : {}),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .or(`id.eq.${orderId},order_number.eq.${orderId}`);
     } catch (e) {
       console.warn("Supabase patch notice:", e);
