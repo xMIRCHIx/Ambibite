@@ -102,9 +102,18 @@ export default function AdminDashboard() {
     showToast(`Physical cash ₹${currentHeld} collected from ${name}. Digital ledger reset to ₹0!`);
   };
 
+  const liveOrdersCount = orders.filter((o) => o.status !== "Delivered").length;
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "orders", label: "Live Orders", icon: ShoppingBag, badge: `${liveOrdersCount} Live` },
+    { id: "restaurants", label: "Restaurants", icon: Store, count: `${restaurants.length}` },
+    { id: "riders", label: "Rider Fleet", icon: Bike, count: `${riders.filter((r) => r.isOnline).length} Online` },
+    { id: "payouts", label: "Weekly Payouts", icon: Banknote },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased">
-      
+
       {/* Toast Banner Notification */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 bg-orange-600 text-white font-bold text-xs px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4">
@@ -135,24 +144,17 @@ export default function AdminDashboard() {
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1">
-            {[
-              { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-              { id: "orders", label: "Live Orders", icon: ShoppingBag, badge: `${orders.filter(o => o.status !== "Delivered").length} Live` },
-              { id: "restaurants", label: "Restaurants", icon: Store, count: `${restaurants.length}` },
-              { id: "riders", label: "Rider Fleet", icon: Bike, count: `${riders.filter(r => r.isOnline).length} Online` },
-              { id: "payouts", label: "Weekly Payouts", icon: Banknote },
-            ].map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs transition duration-200 cursor-pointer ${
-                    isActive
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs transition duration-200 cursor-pointer ${isActive
                       ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20"
                       : "text-slate-400 hover:text-white hover:bg-slate-900"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-slate-400"}`} />
@@ -205,7 +207,7 @@ export default function AdminDashboard() {
 
       {/* Main Command Surface */}
       <div className="flex-1 flex flex-col bg-slate-900 min-w-0 overflow-y-auto">
-        
+
         {/* Top Navbar */}
         <header className="h-16 px-6 lg:px-8 border-b border-slate-800 bg-slate-950/60 backdrop-blur-md flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-4 flex-1 max-w-md">
@@ -234,19 +236,50 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* Mobile Horizontal Navigation Tabs (Visible on < md screens) */}
+        <div className="flex md:hidden items-center gap-2 overflow-x-auto p-3 bg-slate-950 border-b border-slate-800 scrollbar-none sticky top-16 z-20">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition shrink-0 ${
+                  isActive
+                    ? "bg-orange-600 text-white shadow-md shadow-orange-600/30"
+                    : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+                {item.id === "orders" && liveOrdersCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+                )}
+              </button>
+            );
+          })}
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 whitespace-nowrap shrink-0"
+          >
+            <span>Customer View →</span>
+          </Link>
+        </div>
+
         {/* Dynamic Content Views based on activeTab */}
-        <main className="p-6 lg:p-8 space-y-8">
-          
+        <main className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 pb-24">
+
           {/* TAB 1: DASHBOARD OVERVIEW */}
           {activeTab === "dashboard" && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
               <div>
-                <h2 className="text-2xl font-black text-white tracking-tight">System Control Matrix</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">System Control Matrix</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Real-time status of orders, food outlets, and active delivery partners in Ambikapur.</p>
               </div>
 
               {/* Quick Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
                 {[
                   { title: "Today's Orders", val: "85", change: "+14.2% vs yesterday", icon: ShoppingBag, color: "from-orange-600 to-amber-600" },
                   { title: "Net Revenue (Keep)", val: "₹25,430", change: "20% platform cut locked", icon: TrendingUp, color: "from-emerald-600 to-teal-600" },
@@ -274,7 +307,7 @@ export default function AdminDashboard() {
 
               {/* Live Orders & Rider Fleet Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Live Orders Queue (Col span 2) */}
                 <div className="lg:col-span-2 bg-slate-950 rounded-3xl p-6 border border-slate-800">
                   <div className="flex items-center justify-between mb-5">
@@ -528,11 +561,10 @@ export default function AdminDashboard() {
                       <div className="space-x-2">
                         <button
                           onClick={() => toggleRestaurantBlock(rest.id)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition ${
-                            rest.isBlocked
+                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition ${rest.isBlocked
                               ? "bg-emerald-600 text-white border-emerald-500"
                               : "bg-slate-900 text-rose-400 border-rose-500/30 hover:bg-rose-950/40"
-                          }`}
+                            }`}
                         >
                           {rest.isBlocked ? "Unblock" : "Block Store"}
                         </button>
@@ -582,13 +614,12 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
-                          isLocked
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${isLocked
                             ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
                             : isNearLimit
-                            ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                            : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        }`}>
+                              ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                              : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          }`}>
                           {isLocked ? "LOCKOUT ACTIVE" : isNearLimit ? "NEAR THRESHOLD" : "ACTIVE"}
                         </span>
                       </div>
@@ -601,9 +632,8 @@ export default function AdminDashboard() {
                         </div>
                         <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isLocked ? "bg-rose-500" : isNearLimit ? "bg-amber-500" : "bg-emerald-500"
-                            }`}
+                            className={`h-full rounded-full transition-all duration-500 ${isLocked ? "bg-rose-500" : isNearLimit ? "bg-amber-500" : "bg-emerald-500"
+                              }`}
                             style={{ width: `${Math.min(100, (r.cashHeld / 2000) * 100)}%` }}
                           />
                         </div>
@@ -651,7 +681,7 @@ export default function AdminDashboard() {
 
               <div className="bg-slate-950 rounded-3xl p-6 border border-slate-800 space-y-4">
                 <h3 className="text-base font-black text-white">Pending Monday UPI Transfers</h3>
-                
+
                 <div className="space-y-3">
                   {[
                     { recipient: "The Royal Kitchen (Gandhi Chowk)", type: "Restaurant 80% Cut", upi: "royalkitchen@oksbi", due: "₹18,420" },

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   ToggleRight,
   ToggleLeft,
@@ -37,7 +38,9 @@ export default function RiderDashboard() {
         <header className="bg-white px-5 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-20 shadow-xs">
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-slate-900 text-lg">AmbiBites</span>
+              <Link href="/" className="font-black text-slate-900 text-lg hover:text-orange-600 transition">
+                AmbiBites
+              </Link>
               <span className="bg-orange-100 text-orange-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
                 Rider
               </span>
@@ -50,16 +53,24 @@ export default function RiderDashboard() {
             </div>
           </div>
 
-          <button
-            onClick={() => setIsOnline(!isOnline)}
-            className="transition active:scale-90"
-          >
-            {isOnline ? (
-              <ToggleRight className="w-11 h-11 text-emerald-500" />
-            ) : (
-              <ToggleLeft className="w-11 h-11 text-slate-300" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="text-[10px] font-bold text-slate-500 hover:text-slate-900 bg-slate-100 px-2 py-1 rounded-lg"
+            >
+              Home
+            </Link>
+            <button
+              onClick={() => setIsOnline(!isOnline)}
+              className="transition active:scale-90"
+            >
+              {isOnline ? (
+                <ToggleRight className="w-10 h-10 text-emerald-500" />
+              ) : (
+                <ToggleLeft className="w-10 h-10 text-slate-300" />
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Scrollable Tasks Body */}

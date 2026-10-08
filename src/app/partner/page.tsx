@@ -100,52 +100,52 @@ export default function RestaurantPartnerHub() {
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans antialiased flex flex-col">
       
       {/* Top Hub Bar */}
-      <header className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30">
+      <header className="bg-slate-950 border-b border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-wrap items-center justify-between gap-3 sm:gap-4 sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-600/30">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-600/30 shrink-0">
             <Store className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-black text-white">The Royal Kitchen</h1>
-              <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+              <h1 className="text-sm sm:text-base font-black text-white">The Royal Kitchen</h1>
+              <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
                 Partner POS
               </span>
             </div>
-            <p className="text-xs text-slate-400">Ambikapur Main Branch • Gandhi Chowk</p>
+            <p className="text-[11px] sm:text-xs text-slate-400">Ambikapur Main Branch • Gandhi Chowk</p>
           </div>
         </div>
 
         {/* Global Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           
           {/* Sound Loud Alert Toggle */}
           <button
             onClick={() => setIsSoundMuted(!isSoundMuted)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] sm:text-xs font-bold transition ${
               isSoundMuted
                 ? "bg-slate-900 border-slate-800 text-slate-500"
                 : "bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse"
             }`}
           >
-            {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            <span>{isSoundMuted ? "Sound Muted" : "Loud Ring Active"}</span>
+            {isSoundMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+            <span>{isSoundMuted ? "Muted" : "Loud Ring Active"}</span>
           </button>
 
           {/* Restaurant Open / Closed Switch */}
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-xl">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 sm:px-4 py-1.5 rounded-xl">
             <button
               onClick={() => setIsAcceptingOrders(!isAcceptingOrders)}
-              className="flex items-center gap-2 text-xs font-bold"
+              className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold"
             >
               {isAcceptingOrders ? (
                 <>
-                  <ToggleRight className="w-7 h-7 text-emerald-400" />
+                  <ToggleRight className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" />
                   <span className="text-emerald-400 font-black">Taking Orders</span>
                 </>
               ) : (
                 <>
-                  <ToggleLeft className="w-7 h-7 text-slate-600" />
+                  <ToggleLeft className="w-6 h-6 sm:w-7 sm:h-7 text-slate-600" />
                   <span className="text-slate-500">Store Paused</span>
                 </>
               )}
@@ -154,7 +154,7 @@ export default function RestaurantPartnerHub() {
 
           <Link
             href="/"
-            className="text-xs font-bold text-slate-400 hover:text-white transition"
+            className="text-[11px] sm:text-xs font-bold text-slate-400 hover:text-white transition px-2 py-1 rounded-lg"
           >
             Customer View →
           </Link>
@@ -162,7 +162,7 @@ export default function RestaurantPartnerHub() {
       </header>
 
       {/* Main Grid View */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 pb-20 grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left 2 Cols: Orders Processing Board */}
         <div className="lg:col-span-2 space-y-6">

@@ -316,7 +316,7 @@ export default function CustomerHome() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 antialiased flex flex-col justify-between selection:bg-orange-500 selection:text-white">
-      
+
       {/* Top Banner Notice */}
       <div className="bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[11px] font-bold py-1.5 px-4 text-center tracking-wide flex items-center justify-center gap-2">
         <Sparkles className="w-3.5 h-3.5 animate-spin" />
@@ -326,91 +326,125 @@ export default function CustomerHome() {
       </div>
 
       {/* Primary Sticky Header */}
-      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs px-4 lg:px-8 py-3 transition-all">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3 transition-all">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
           
-          {/* Logo & City Selector */}
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 group">
-              <span className="w-9 h-9 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-orange-600/30 group-hover:scale-105 transition">
-                A
-              </span>
-              <div>
-                <span className="text-xl font-black tracking-tight text-slate-900 group-hover:text-orange-600 transition">
-                  AmbiBites
+          {/* Top Row: Brand, Delivery Location, Cart */}
+          <div className="flex items-center justify-between gap-2">
+            
+            {/* Logo & City Selector */}
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <Link href="/" className="flex items-center gap-2 group shrink-0">
+                <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-lg sm:text-xl shadow-lg shadow-orange-600/30 group-hover:scale-105 transition">
+                  A
                 </span>
-                <span className="block text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none">
-                  Ambikapur Express
-                </span>
-              </div>
-            </Link>
+                <div className="hidden xs:block">
+                  <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 group-hover:text-orange-600 transition">
+                    AmbiBites
+                  </span>
+                  <span className="block text-[8px] sm:text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none">
+                    Ambikapur Express
+                  </span>
+                </div>
+              </Link>
 
-            {/* Address Selector Pill */}
-            <div
-              onClick={() => setIsLocationModalOpen(true)}
-              className="hidden md:flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer border border-slate-200 transition"
-            >
-              <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-              <span>Deliver to: <strong className="text-slate-900">{selectedLocation}</strong></span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              {/* Address Selector Pill (Visible on all screens) */}
+              <button
+                onClick={() => setIsLocationModalOpen(true)}
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 px-2.5 sm:px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold cursor-pointer border border-slate-200 transition truncate max-w-[140px] xs:max-w-[200px] sm:max-w-xs"
+              >
+                <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                <span className="truncate">Deliver to: <strong className="text-slate-900">{selectedLocation.split(",")[0]}</strong></span>
+                <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+              </button>
+            </div>
+
+            {/* Desktop Navigation & Cart Trigger */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Desktop Portal Switcher Buttons */}
+              <div className="hidden xl:flex items-center gap-1.5 bg-slate-100 p-1 rounded-full text-[11px] font-bold">
+                <Link href="/admin" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
+                  Admin Panel
+                </Link>
+                <Link href="/rider" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
+                  Rider App
+                </Link>
+                <Link href="/partner" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
+                  Restaurant Hub
+                </Link>
+              </div>
+
+              {/* Desktop Search & Veg toggle (Hidden on mobile, mobile has row below) */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search food or restaurant..."
+                    className="pl-9 pr-4 py-2 w-52 lg:w-64 rounded-full bg-slate-100 border border-transparent text-xs font-medium focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition"
+                  />
+                </div>
+
+                <button
+                  onClick={() => setIsVegOnly(!isVegOnly)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition shadow-xs ${
+                    isVegOnly
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-700 ring-2 ring-emerald-500/20"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className={`w-3 h-3 rounded-xs border flex items-center justify-center p-0.5 ${isVegOnly ? "border-emerald-600" : "border-slate-400"}`}>
+                    <span className={`w-full h-full rounded-full ${isVegOnly ? "bg-emerald-600" : "bg-slate-300"}`} />
+                  </span>
+                  <span>Veg Only</span>
+                </button>
+              </div>
+
+              {/* Cart Trigger Button */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative bg-orange-600 hover:bg-orange-700 active:scale-95 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-black text-xs flex items-center gap-1.5 sm:gap-2 shadow-md shadow-orange-600/30 transition shrink-0"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Cart</span>
+                {totalItemCount > 0 ? (
+                  <span className="bg-white text-orange-600 rounded-full px-1.5 py-0.2 text-[10px] font-black">
+                    {totalItemCount}
+                  </span>
+                ) : (
+                  <span className="xs:hidden text-[11px] font-bold">0</span>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Search, Filter & Quick Nav Links */}
-          <div className="flex items-center gap-3">
-            
-            {/* Search Input */}
-            <div className="relative">
+          {/* Mobile Search Row & Veg Toggle (Visible only on mobile/tablet < 768px) */}
+          <div className="flex md:hidden items-center gap-2 pt-1">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search food or restaurant..."
-                className="pl-9 pr-4 py-2 w-44 sm:w-64 rounded-full bg-slate-100 border border-transparent text-xs sm:text-sm font-medium focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition"
+                placeholder="Search food or restaurant in Ambikapur..."
+                className="w-full pl-9 pr-3 py-2 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition"
               />
             </div>
 
-            {/* Veg Only Toggle */}
             <button
               onClick={() => setIsVegOnly(!isVegOnly)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition shadow-xs ${
+              className={`flex items-center gap-1 px-3 py-2 rounded-full border text-xs font-bold transition shrink-0 shadow-xs ${
                 isVegOnly
-                  ? "bg-emerald-50 border-emerald-400 text-emerald-700 ring-2 ring-emerald-500/20"
-                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  ? "bg-emerald-50 border-emerald-400 text-emerald-700 ring-1 ring-emerald-500"
+                  : "bg-white border-slate-200 text-slate-600"
               }`}
             >
               <span className={`w-3 h-3 rounded-xs border flex items-center justify-center p-0.5 ${isVegOnly ? "border-emerald-600" : "border-slate-400"}`}>
                 <span className={`w-full h-full rounded-full ${isVegOnly ? "bg-emerald-600" : "bg-slate-300"}`} />
               </span>
-              <span>Veg Only</span>
-            </button>
-
-            {/* Portal Switcher Buttons */}
-            <div className="hidden xl:flex items-center gap-1.5 bg-slate-100 p-1 rounded-full text-[11px] font-bold">
-              <Link href="/admin" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
-                Admin Panel
-              </Link>
-              <Link href="/rider" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
-                Rider App
-              </Link>
-              <Link href="/partner" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
-                Restaurant Hub
-              </Link>
-            </div>
-
-            {/* Cart Trigger */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative bg-orange-600 hover:bg-orange-700 active:scale-95 text-white px-4 py-2 rounded-full font-black text-xs flex items-center gap-2 shadow-md shadow-orange-600/30 transition"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Cart</span>
-              {totalItemCount > 0 && (
-                <span className="bg-white text-orange-600 rounded-full px-1.5 py-0.2 text-[10px] font-black">
-                  {totalItemCount}
-                </span>
-              )}
+              <span className="text-[11px]">Veg</span>
             </button>
           </div>
 
@@ -418,7 +452,7 @@ export default function CustomerHome() {
       </nav>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 space-y-10">
+      <main className="max-w-7xl mx-auto w-full px-3 sm:px-4 lg:px-8 py-5 sm:py-6 space-y-8 sm:space-y-10 pb-28 md:pb-12">
 
         {/* 1. What's on your mind? Horizontal Food Category Circles */}
         <section>
@@ -448,18 +482,16 @@ export default function CustomerHome() {
                   onClick={() => setSelectedFilter(isActive ? "All" : cat.name)}
                   className="flex flex-col items-center gap-2 group shrink-0 transition"
                 >
-                  <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden p-1 transition duration-300 shadow-md ${
-                    isActive ? "ring-4 ring-orange-500 scale-105" : "group-hover:scale-105 group-hover:ring-2 group-hover:ring-orange-300"
-                  }`}>
+                  <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden p-1 transition duration-300 shadow-md ${isActive ? "ring-4 ring-orange-500 scale-105" : "group-hover:scale-105 group-hover:ring-2 group-hover:ring-orange-300"
+                    }`}>
                     <img
                       src={cat.image}
                       alt={cat.name}
                       className="w-full h-full object-cover rounded-full"
                     />
                   </div>
-                  <span className={`text-xs font-extrabold transition ${
-                    isActive ? "text-orange-600" : "text-slate-700 group-hover:text-orange-600"
-                  }`}>
+                  <span className={`text-xs font-extrabold transition ${isActive ? "text-orange-600" : "text-slate-700 group-hover:text-orange-600"
+                    }`}>
                     {cat.name}
                   </span>
                 </button>
@@ -498,7 +530,7 @@ export default function CustomerHome() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                    
+
                     {/* Discount Tag */}
                     <div className="absolute bottom-2.5 left-3">
                       <span className="text-white text-xs font-black tracking-wide drop-shadow-md flex items-center gap-1">
@@ -561,11 +593,10 @@ export default function CustomerHome() {
                 <button
                   key={tab}
                   onClick={() => setSelectedFilter(tab)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-xs whitespace-nowrap ${
-                    selectedFilter === tab
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-xs whitespace-nowrap ${selectedFilter === tab
                       ? "bg-slate-900 text-white"
                       : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -590,18 +621,16 @@ export default function CustomerHome() {
                         alt={item.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      
+
                       {/* Veg / Non-veg marker */}
                       <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md p-1.5 rounded-lg shadow-md">
                         <div
-                          className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${
-                            item.isVeg ? "border-emerald-600" : "border-rose-600"
-                          }`}
+                          className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${item.isVeg ? "border-emerald-600" : "border-rose-600"
+                            }`}
                         >
                           <div
-                            className={`w-2 h-2 rounded-full ${
-                              item.isVeg ? "bg-emerald-600" : "bg-rose-600"
-                            }`}
+                            className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-emerald-600" : "bg-rose-600"
+                              }`}
                           />
                         </div>
                       </div>
@@ -633,7 +662,7 @@ export default function CustomerHome() {
                         {item.name}
                       </h3>
                     </Link>
-                    
+
                     <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
                       {item.description}
                     </p>
@@ -723,7 +752,7 @@ export default function CustomerHome() {
 
           {/* Drawer Body */}
           <aside className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
-            
+
             {/* Drawer Header */}
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
               <div className="flex items-center gap-2.5">
@@ -761,14 +790,12 @@ export default function CustomerHome() {
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
                         <div
-                          className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${
-                            item.isVeg ? "border-emerald-600" : "border-rose-600"
-                          }`}
+                          className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${item.isVeg ? "border-emerald-600" : "border-rose-600"
+                            }`}
                         >
                           <div
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              item.isVeg ? "bg-emerald-600" : "bg-rose-600"
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${item.isVeg ? "bg-emerald-600" : "bg-rose-600"
+                              }`}
                           />
                         </div>
                       </div>
@@ -809,7 +836,7 @@ export default function CustomerHome() {
             {/* Bill Details & Payment */}
             {cartItems.length > 0 && (
               <div className="p-6 border-t border-slate-100 bg-slate-50/80 space-y-4">
-                
+
                 {/* Bill Breakdown */}
                 <div className="space-y-2 text-xs font-medium text-slate-600">
                   <div className="flex justify-between">
@@ -854,22 +881,20 @@ export default function CustomerHome() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setPaymentMethod("COD")}
-                      className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition ${
-                        paymentMethod === "COD"
+                      className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition ${paymentMethod === "COD"
                           ? "bg-orange-50 border-orange-500 text-orange-600 shadow-xs"
                           : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       <Banknote className="w-3.5 h-3.5" />
                       <span>Cash (COD)</span>
                     </button>
                     <button
                       onClick={() => setPaymentMethod("UPI")}
-                      className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition ${
-                        paymentMethod === "UPI"
+                      className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition ${paymentMethod === "UPI"
                           ? "bg-orange-50 border-orange-500 text-orange-600 shadow-xs"
                           : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       <CreditCard className="w-3.5 h-3.5" />
                       <span>Instant UPI</span>
@@ -971,11 +996,10 @@ export default function CustomerHome() {
                     setSelectedLocation(loc.name);
                     setIsLocationModalOpen(false);
                   }}
-                  className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
-                    selectedLocation.includes(loc.name.split(" ")[0])
+                  className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between ${selectedLocation.includes(loc.name.split(" ")[0])
                       ? "bg-orange-50 border-orange-500 shadow-xs"
                       : "bg-slate-50 border-slate-100 hover:bg-slate-100/80 hover:border-slate-200"
-                  }`}
+                    }`}
                 >
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">{loc.name}</h4>
@@ -997,7 +1021,7 @@ export default function CustomerHome() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 px-4 text-center text-xs text-slate-400 font-medium">
+      <footer className="border-t border-slate-200 bg-white py-8 px-4 text-center text-xs text-slate-400 font-medium mb-14 md:mb-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-orange-600 text-white font-black text-xs flex items-center justify-center">
@@ -1013,6 +1037,65 @@ export default function CustomerHome() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Bottom Bar on Mobile when items are in cart */}
+      {totalItemCount > 0 && (
+        <div className="fixed bottom-16 left-3 right-3 z-40 md:hidden animate-in slide-in-from-bottom-3">
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-3 px-4 rounded-2xl shadow-xl flex items-center justify-between transition active:scale-98"
+          >
+            <div className="text-left flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <span className="text-[10px] text-orange-100 font-extrabold uppercase tracking-wider block">
+                  {totalItemCount} ITEM{totalItemCount > 1 ? "S" : ""} IN BASKET
+                </span>
+                <span className="text-sm font-black text-white">₹{grandTotal}</span>
+              </div>
+            </div>
+            <span className="text-xs font-black bg-white text-orange-600 px-3.5 py-1.5 rounded-xl shadow-xs flex items-center gap-1">
+              Checkout <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Native Mobile Bottom Navigation Dock */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 flex items-center justify-around md:hidden shadow-lg">
+        <Link href="/" className="flex flex-col items-center gap-0.5 text-orange-600">
+          <Compass className="w-5 h-5" />
+          <span className="text-[10px] font-black">Food</span>
+        </Link>
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="flex flex-col items-center gap-0.5 text-slate-500 hover:text-slate-900 relative"
+        >
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5" />
+            {totalItemCount > 0 && (
+              <span className="absolute -top-1 -right-2 bg-orange-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                {totalItemCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold">Cart</span>
+        </button>
+        <Link href="/partner" className="flex flex-col items-center gap-0.5 text-slate-500 hover:text-slate-900">
+          <Store className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Partner</span>
+        </Link>
+        <Link href="/rider" className="flex flex-col items-center gap-0.5 text-slate-500 hover:text-slate-900">
+          <Bike className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Rider</span>
+        </Link>
+        <Link href="/admin" className="flex flex-col items-center gap-0.5 text-slate-500 hover:text-slate-900">
+          <ShieldCheck className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Admin</span>
+        </Link>
+      </div>
 
     </div>
   );
