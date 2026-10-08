@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -29,22 +29,35 @@ import {
   Download,
 } from "lucide-react";
 
+export interface LiveOrderData {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone?: string;
+  deliveryArea: string;
+  restaurantName: string;
+  items: { name: string; qty: number; price: number }[];
+  itemTotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  totalAmount: number;
+  paymentMethod: "COD" | "UPI";
+  paymentStatus: "pending" | "completed";
+  status: "placed" | "preparing" | "ready" | "rider_assigned" | "picked_up" | "delivered" | "cancelled";
+  riderName: string | null;
+  createdAt: string;
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "restaurants" | "riders" | "payouts">("dashboard");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [liveOrders, setLiveOrders] = useState<LiveOrderData[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
-
-  // State: Orders
-  const [orders, setOrders] = useState([
-    { id: "#AB-8102", rest: "The Royal Kitchen", customer: "Aryan Gupta", area: "Gandhi Chowk", rider: "Ramesh K.", amt: 465, status: "Preparing", step: "Kitchen", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-    { id: "#AB-8101", rest: "Burger Hub", customer: "Pooja Singh", area: "Ghadi Chowk", rider: "Suresh M.", amt: 340, status: "Rider Assigned", step: "Pickup", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-    { id: "#AB-8099", rest: "Kolkata Roll Corner", customer: "Vikas Verma", area: "Ring Road East", rider: "Ajay P.", amt: 220, status: "In Transit", step: "Delivery", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
-    { id: "#AB-8095", rest: "Dosa Plaza", customer: "Manish Tiwari", area: "Sadhar Hospital", rider: "Ramesh K.", amt: 190, status: "Delivered", step: "Completed", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  ]);
 
   // State: Restaurants
   const [restaurants, setRestaurants] = useState([
@@ -56,17 +69,55 @@ export default function AdminDashboard() {
 
   // State: Riders
   const [riders, setRiders] = useState([
-    { id: 1, name: "Ramesh Kumar", phone: "+91 98261 11223", vehicle: "Hero Splendor (CG 15)", status: "On Transit", cashHeld: 420, completedToday: 11, isOnline: true },
-    { id: 2, name: "Suresh Mandavi", phone: "+91 70002 33445", vehicle: "Honda Activa (CG 15)", status: "Idle at Chowk", cashHeld: 180, completedToday: 8, isOnline: true },
-    { id: 3, name: "Ajay Patel", phone: "+91 99814 55667", vehicle: "Bajaj Pulsar (CG 15)", status: "Delivering #AB-8099", cashHeld: 1240, completedToday: 14, isOnline: true },
+    { id: 1, name: "Ramesh Kumar", phone: "+91 98261 11223", vehicle: "Hero Splendor (CG 15)", status: "Available", cashHeld: 420, completedToday: 11, isOnline: true },
+    { id: 2, name: "Suresh Mandavi", phone: "+91 70002 33445", vehicle: "Honda Activa (CG 15)", status: "Available", cashHeld: 180, completedToday: 8, isOnline: true },
+    { id: 3, name: "Ajay Patel", phone: "+91 99814 55667", vehicle: "Bajaj Pulsar (CG 15)", status: "Available", cashHeld: 1240, completedToday: 14, isOnline: true },
     { id: 4, name: "Deepak Sahu", phone: "+91 91312 88990", vehicle: "TVS Jupiter (CG 15)", status: "Offline", cashHeld: 0, completedToday: 0, isOnline: false },
   ]);
 
-  const dispatchOrder = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: "In Transit", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" } : o))
-    );
-    showToast(`Order ${id} manual override: Dispatched to active rider!`);
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if (data.success && data.orders) {
+        setLiveOrders(data.orders);
+      }
+    } catch (e) {
+      console.warn("Error fetching live orders:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const assignRiderToOrder = async (orderId: string, orderNumber: string, riderName: string) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "rider_assigned",
+          riderName,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Rider ${riderName} assigned to Order ${orderNumber}! Task sent to Rider App.`);
+        fetchOrders();
+      }
+    } catch (e) {
+      showToast(`Error assigning rider: ${e}`);
+    }
+  };
+
+  const dispatchOrder = async (id: string, orderNumber: string) => {
+    // Default quick dispatch to first available online rider
+    const onlineRider = riders.find((r) => r.isOnline)?.name || "Ramesh Kumar";
+    await assignRiderToOrder(id, orderNumber, onlineRider);
   };
 
   const toggleRestaurantStatus = (id: number) => {
@@ -102,7 +153,29 @@ export default function AdminDashboard() {
     showToast(`Physical cash ₹${currentHeld} collected from ${name}. Digital ledger reset to ₹0!`);
   };
 
-  const liveOrdersCount = orders.filter((o) => o.status !== "Delivered").length;
+  const getOrderStatusBadge = (status: string) => {
+    switch (status) {
+      case "placed":
+        return { label: "Incoming Kitchen", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
+      case "preparing":
+        return { label: "Kitchen Preparing", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" };
+      case "ready":
+        return { label: "Food Ready", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" };
+      case "rider_assigned":
+        return { label: "Rider Assigned", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" };
+      case "picked_up":
+        return { label: "In Transit", color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" };
+      case "delivered":
+        return { label: "Delivered", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" };
+      case "cancelled":
+      case "rejected":
+        return { label: "Rider Rejected", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" };
+      default:
+        return { label: status, color: "bg-slate-500/20 text-slate-300 border-slate-500/30" };
+    }
+  };
+
+  const liveOrdersCount = liveOrders.filter((o) => o.status !== "delivered").length;
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Live Orders", icon: ShoppingBag, badge: `${liveOrdersCount} Live` },
@@ -281,10 +354,10 @@ export default function AdminDashboard() {
               {/* Quick Metrics */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
                 {[
-                  { title: "Today's Orders", val: "85", change: "+14.2% vs yesterday", icon: ShoppingBag, color: "from-orange-600 to-amber-600" },
-                  { title: "Net Revenue (Keep)", val: "₹25,430", change: "20% platform cut locked", icon: TrendingUp, color: "from-emerald-600 to-teal-600" },
-                  { title: "Rider Cash Held", val: "₹1,840", change: "Under ₹2,000 threshold", icon: Banknote, color: "from-blue-600 to-indigo-600" },
-                  { title: "Avg Delivery Time", val: "24.5 Mins", change: "Ambikapur city limits", icon: Clock, color: "from-purple-600 to-pink-600" },
+                  { title: "Active Orders", val: `${liveOrders.length}`, change: `${liveOrdersCount} in Kitchen / Transit`, icon: ShoppingBag, color: "from-orange-600 to-amber-600" },
+                  { title: "Gross GMV", val: `₹${liveOrders.reduce((sum, o) => sum + o.totalAmount, 0)}`, change: "Ambikapur Live Stream", icon: TrendingUp, color: "from-emerald-600 to-teal-600" },
+                  { title: "Rider Cash Held", val: `₹${riders.reduce((sum, r) => sum + r.cashHeld, 0)}`, change: "Under ₹2,000 threshold", icon: Banknote, color: "from-blue-600 to-indigo-600" },
+                  { title: "Online Riders", val: `${riders.filter(r => r.isOnline).length} Active`, change: "Available for Dispatch", icon: Bike, color: "from-purple-600 to-pink-600" },
                 ].map((stat, i) => {
                   const Icon = stat.icon;
                   return (
@@ -319,46 +392,54 @@ export default function AdminDashboard() {
                       onClick={() => setActiveTab("orders")}
                       className="text-xs font-bold text-orange-400 hover:underline"
                     >
-                      View All Orders →
+                      View All Orders ({liveOrders.length}) →
                     </button>
                   </div>
 
                   <div className="space-y-3">
-                    {orders.slice(0, 3).map((o, idx) => (
-                      <div key={idx} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 transition">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-800 font-black text-white text-xs flex items-center justify-center">
-                            {o.id.replace("#AB-", "")}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-sm text-white">{o.rest}</h4>
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${o.color}`}>
-                                {o.status}
-                              </span>
+                    {liveOrders.slice(0, 4).map((o) => {
+                      const badge = getOrderStatusBadge(o.status);
+                      return (
+                        <div key={o.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 transition">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-slate-800 font-black text-white text-xs flex items-center justify-center">
+                              {o.orderNumber.replace("#AB-", "")}
                             </div>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              To: <strong className="text-slate-300">{o.customer} ({o.area})</strong> • Rider: <span className="text-orange-400 font-semibold">{o.rider}</span>
-                            </p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-sm text-white">{o.restaurantName}</h4>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${badge.color}`}>
+                                  {badge.label}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                To: <strong className="text-slate-300">{o.customerName} ({o.deliveryArea.split(",")[0]})</strong> • Rider: <span className="text-orange-400 font-semibold">{o.riderName || "Pending Assign"}</span>
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-sm font-black text-white">₹{o.amt}</span>
-                            <span className="text-[10px] text-slate-500 block uppercase font-bold">Paid Online</span>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className="text-sm font-black text-white">₹{o.totalAmount}</span>
+                              <span className="text-[10px] text-slate-500 block uppercase font-bold">{o.paymentMethod}</span>
+                            </div>
+                            {o.status !== "delivered" && (
+                              <button
+                                onClick={() => setActiveTab("orders")}
+                                className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow transition"
+                              >
+                                {o.riderName ? "Manage" : "Assign Rider"}
+                              </button>
+                            )}
                           </div>
-                          {o.status !== "In Transit" && o.status !== "Delivered" && (
-                            <button
-                              onClick={() => dispatchOrder(o.id)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow transition"
-                            >
-                              Dispatch
-                            </button>
-                          )}
                         </div>
+                      );
+                    })}
+                    {liveOrders.length === 0 && (
+                      <div className="p-8 text-center text-slate-500 text-xs">
+                        No orders in queue. Place an order in customer view to see live dispatch!
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -419,11 +500,14 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-black text-white tracking-tight">Live Orders Master Queue</h2>
-                  <p className="text-xs text-slate-400">Monitor all customer orders placed across Ambikapur in real-time.</p>
+                  <p className="text-xs text-slate-400">Monitor all customer orders placed across Ambikapur in real-time ({liveOrders.length} active).</p>
                 </div>
                 <button
-                  onClick={() => showToast("Order queue updated")}
-                  className="bg-orange-600 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2"
+                  onClick={() => {
+                    fetchOrders();
+                    showToast("Order queue refreshed from live network!");
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Refresh Queue</span>
@@ -445,41 +529,88 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {orders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-slate-900/40 transition">
-                          <td className="py-4 px-4 font-black text-orange-400">{ord.id}</td>
-                          <td className="py-4 px-4 font-bold text-white">{ord.rest}</td>
-                          <td className="py-4 px-4">
-                            <span className="font-bold text-white block">{ord.customer}</span>
-                            <span className="text-slate-400 text-[11px]">{ord.area}</span>
-                          </td>
-                          <td className="py-4 px-4 font-medium text-slate-300">{ord.rider}</td>
-                          <td className="py-4 px-4 font-black text-white">₹{ord.amt}</td>
-                          <td className="py-4 px-4">
-                            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${ord.color}`}>
-                              {ord.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-right space-x-2">
-                            {ord.status !== "Delivered" ? (
-                              <button
-                                onClick={() => dispatchOrder(ord.id)}
-                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-3 py-1.5 rounded-xl transition"
-                              >
-                                Dispatch
-                              </button>
-                            ) : (
-                              <span className="text-emerald-400 font-bold text-[11px]">Completed</span>
-                            )}
-                            <button
-                              onClick={() => showToast(`Calling customer ${ord.customer}...`)}
-                              className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl transition"
-                            >
-                              Call
-                            </button>
+                      {liveOrders.map((ord) => {
+                        const badge = getOrderStatusBadge(ord.status);
+                        return (
+                          <tr key={ord.id} className="hover:bg-slate-900/40 transition">
+                            <td className="py-4 px-4 font-black text-orange-400">{ord.orderNumber}</td>
+                            <td className="py-4 px-4 font-bold text-white">{ord.restaurantName}</td>
+                            <td className="py-4 px-4">
+                              <span className="font-bold text-white block">{ord.customerName}</span>
+                              <span className="text-slate-400 text-[11px] block">{ord.deliveryArea}</span>
+                              {ord.customerPhone && (
+                                <span className="text-slate-500 text-[10px]">{ord.customerPhone}</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              {ord.riderName ? (
+                                <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                                  <Bike className="w-3.5 h-3.5 text-orange-400" />
+                                  <span>{ord.riderName}</span>
+                                </span>
+                              ) : (
+                                <span className="text-amber-400/80 font-semibold italic text-[11px]">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 font-black text-white">
+                              <div>₹{ord.totalAmount}</div>
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">{ord.paymentMethod}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                {ord.status !== "delivered" && ord.status !== "picked_up" && (
+                                  <select
+                                    value={ord.riderName || ""}
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        assignRiderToOrder(ord.id, ord.orderNumber, e.target.value);
+                                      }
+                                    }}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs py-1.5 px-2.5 rounded-xl cursor-pointer border border-orange-500 outline-none"
+                                  >
+                                    <option value="" disabled>
+                                      {ord.riderName ? `Assigned: ${ord.riderName}` : "Assign Rider →"}
+                                    </option>
+                                    {riders.filter((r) => r.isOnline).map((r) => (
+                                      <option key={r.id} value={r.name} className="bg-slate-900 text-white">
+                                        {r.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                {ord.status === "picked_up" && (
+                                  <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-xl font-bold text-[11px]">
+                                    Out for Delivery
+                                  </span>
+                                )}
+                                {ord.status === "delivered" && (
+                                  <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+                                    <Check className="w-3.5 h-3.5" /> Completed
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => showToast(`Dialling customer ${ord.customerName} (${ord.customerPhone || "Ambikapur"})...`)}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl transition text-[11px] font-bold"
+                                >
+                                  Call
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {liveOrders.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-500 text-xs">
+                            No active orders right now. Place an order in customer portal to simulate!
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>

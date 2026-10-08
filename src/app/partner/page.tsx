@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Store,
@@ -25,7 +25,7 @@ interface IncomingOrder {
   timeRemainingSec: number;
   customerName: string;
   deliveryArea: string;
-  items: { name: string; qty: number; price: number; isVeg: boolean }[];
+  items: { name: string; qty: number; price: number; isVeg?: boolean }[];
   totalAmount: number;
   status: "incoming" | "preparing" | "ready";
   prepTimeMinutes: number;
@@ -34,36 +34,44 @@ interface IncomingOrder {
 export default function RestaurantPartnerHub() {
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
   const [isSoundMuted, setIsSoundMuted] = useState(false);
-  const [orders, setOrders] = useState<IncomingOrder[]>([
-    {
-      id: "ord-1",
-      orderNumber: "#AB-8105",
-      timeRemainingSec: 145,
-      customerName: "Rahul Sharma",
-      deliveryArea: "Gandhi Chowk (1.2 km)",
-      items: [
-        { name: "Special Chicken Dum Biryani", qty: 2, price: 320, isVeg: false },
-        { name: "Paneer Tikka Butter Roll", qty: 1, price: 120, isVeg: true },
-      ],
-      totalAmount: 760,
-      status: "incoming",
-      prepTimeMinutes: 20,
-    },
-    {
-      id: "ord-2",
-      orderNumber: "#AB-8102",
-      timeRemainingSec: 0,
-      customerName: "Aryan Gupta",
-      deliveryArea: "Ward 15, Near Water Tank",
-      items: [
-        { name: "Paneer Tikka Butter Roll", qty: 1, price: 120, isVeg: true },
-        { name: "Roasted Chicken Half", qty: 1, price: 250, isVeg: false },
-      ],
-      totalAmount: 370,
-      status: "preparing",
-      prepTimeMinutes: 15,
-    },
-  ]);
+  const [orders, setOrders] = useState<IncomingOrder[]>([]);
+
+  const fetchPartnerOrders = async () => {
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if (data.success && data.orders) {
+        // Map to partner format
+        const mapped: IncomingOrder[] = data.orders.map((o: any) => {
+          let posStatus: "incoming" | "preparing" | "ready" = "incoming";
+          if (o.status === "preparing") posStatus = "preparing";
+          else if (o.status === "ready" || o.status === "rider_assigned" || o.status === "picked_up" || o.status === "delivered") posStatus = "ready";
+          else if (o.status === "placed") posStatus = "incoming";
+
+          return {
+            id: o.id,
+            orderNumber: o.orderNumber,
+            timeRemainingSec: 180,
+            customerName: o.customerName,
+            deliveryArea: o.deliveryArea,
+            items: o.items || [],
+            totalAmount: o.totalAmount,
+            status: posStatus,
+            prepTimeMinutes: o.prepTimeMinutes || 20,
+          };
+        });
+        setOrders(mapped);
+      }
+    } catch (e) {
+      console.warn("Partner fetch notice:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchPartnerOrders();
+    const interval = setInterval(fetchPartnerOrders, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [menuItems, setMenuItems] = useState([
     { id: 1, name: "Special Chicken Dum Biryani", price: 320, inStock: true },
@@ -72,20 +80,43 @@ export default function RestaurantPartnerHub() {
     { id: 4, name: "Fresh Mango Kulfi Shake", price: 90, inStock: false },
   ]);
 
-  const handleAccept = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: "preparing" } : o))
-    );
+  const handleAccept = async (orderId: string) => {
+    try {
+      await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: "preparing" }),
+      });
+      fetchPartnerOrders();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleReject = (orderId: string) => {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  const handleReject = async (orderId: string) => {
+    try {
+      await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: "cancelled" }),
+      });
+      fetchPartnerOrders();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleMarkReady = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: "ready" } : o))
-    );
+  const handleMarkReady = async (orderId: string) => {
+    try {
+      await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: "ready" }),
+      });
+      fetchPartnerOrders();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const toggleStock = (id: number) => {
