@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -166,18 +166,38 @@ export default function RestaurantDetailPage() {
   const [cart, setCart] = useState<{ [id: string]: number }>({});
   const [isLiked, setIsLiked] = useState(false);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ambibites_cart");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          setCart(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
   const categories = ["All", ...Array.from(new Set(restaurant.menu.map((m: MenuItem) => m.category))) as string[]];
 
   const updateQuantity = (id: string, delta: number) => {
     setCart((prev) => {
       const current = prev[id] || 0;
       const next = current + delta;
+      let nextCart = { ...prev };
       if (next <= 0) {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
+        delete nextCart[id];
+      } else {
+        nextCart[id] = next;
       }
-      return { ...prev, [id]: next };
+      try {
+        if (Object.keys(nextCart).length === 0) {
+          localStorage.removeItem("ambibites_cart");
+        } else {
+          localStorage.setItem("ambibites_cart", JSON.stringify(nextCart));
+        }
+      } catch {}
+      return nextCart;
     });
   };
 
@@ -398,7 +418,7 @@ export default function RestaurantDetailPage() {
       {totalItems > 0 && (
         <div className="fixed bottom-5 left-4 right-4 max-w-md mx-auto z-50 animate-in slide-in-from-bottom-4">
           <Link
-            href="/"
+            href="/?openCart=true"
             className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 px-6 rounded-3xl shadow-2xl flex items-center justify-between transition"
           >
             <div>

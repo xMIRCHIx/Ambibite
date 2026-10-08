@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MapPin,
@@ -267,10 +267,7 @@ export default function CustomerHome() {
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [isVegOnly, setIsVegOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState<{ [id: string]: number }>({
-    "1": 1,
-    "2": 1,
-  });
+  const [cart, setCart] = useState<{ [id: string]: number }>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "UPI">("COD");
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -281,15 +278,61 @@ export default function CustomerHome() {
   const [selectedLocation, setSelectedLocation] = useState("Gandhi Chowk, Ambikapur");
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
+  // Restore cart from localStorage on mount & listen to URL triggers
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ambibites_cart");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+          setCart(parsed);
+        }
+      }
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("openCart") === "true") {
+        setIsCartOpen(true);
+      }
+    }
+  }, []);
+
+  // Sync cart changes to localStorage
+  const updateQuantity = (id: string, delta: number) => {
+    setCart((prev) => {
+      const current = prev[id] || 0;
+      const next = current + delta;
+      let nextCart = { ...prev };
+      if (next <= 0) {
+        delete nextCart[id];
+      } else {
+        nextCart[id] = next;
+      }
+      try {
+        if (Object.keys(nextCart).length === 0) {
+          localStorage.removeItem("ambibites_cart");
+        } else {
+          localStorage.setItem("ambibites_cart", JSON.stringify(nextCart));
+        }
+      } catch {}
+      return nextCart;
+    });
+  };
+
   const handlePlaceOrder = async () => {
+    if (cartItems.length === 0) {
+      alert("Cart is empty! Please add items to order.");
+      return;
+    }
     setIsPlacingOrder(true);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName,
-          customerPhone,
+          customerName: customerName.trim() || "Ambikapur Customer",
+          customerPhone: customerPhone.trim() || "+91 98261 44551",
           deliveryArea: selectedLocation,
           restaurantName: cartItems[0]?.restaurantName || "The Royal Kitchen",
           items: cartItems.map((i) => ({
@@ -310,6 +353,7 @@ export default function CustomerHome() {
         setPlacedOrderDetails(data.order);
         setOrderPlaced(true);
         setCart({});
+        try { localStorage.removeItem("ambibites_cart"); } catch {}
       } else {
         setPlacedOrderDetails({
           orderNumber: `#AB-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -317,6 +361,7 @@ export default function CustomerHome() {
         });
         setOrderPlaced(true);
         setCart({});
+        try { localStorage.removeItem("ambibites_cart"); } catch {}
       }
     } catch (e) {
       console.error("Order submit notice:", e);
@@ -326,22 +371,10 @@ export default function CustomerHome() {
       });
       setOrderPlaced(true);
       setCart({});
+      try { localStorage.removeItem("ambibites_cart"); } catch {}
     } finally {
       setIsPlacingOrder(false);
     }
-  };
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) => {
-      const current = prev[id] || 0;
-      const next = current + delta;
-      if (next <= 0) {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      }
-      return { ...prev, [id]: next };
-    });
   };
 
   const filteredItems = MENU_ITEMS.filter((item) => {

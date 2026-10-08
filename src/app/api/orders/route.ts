@@ -29,38 +29,15 @@ export interface LiveOrder {
   prepTimeMinutes: number;
 }
 
-// In-memory store for instant multi-tab sync across Ambikapur network
-let liveOrdersStore: LiveOrder[] = [
-  {
-    id: "ord-demo-1",
-    orderNumber: "#AB-8102",
-    customerName: "Aryan Gupta",
-    customerPhone: "9876543210",
-    deliveryArea: "Gandhi Chowk (1.2 km)",
-    restaurantName: "The Royal Kitchen",
-    items: [
-      { name: "Special Chicken Dum Biryani", qty: 1, price: 320, isVeg: false },
-      { name: "Paneer Tikka Butter Roll", qty: 1, price: 120, isVeg: true },
-    ],
-    itemTotal: 440,
-    deliveryFee: 20,
-    platformFee: 5,
-    totalAmount: 465,
-    paymentMethod: "COD",
-    paymentStatus: "pending",
-    status: "placed",
-    riderName: null,
-    createdAt: new Date().toISOString(),
-    prepTimeMinutes: 20,
-  },
-];
+// In-memory store fallback for multi-tab sync
+let liveOrdersStore: LiveOrder[] = [];
 
 export async function GET() {
   try {
-    // Attempt fetching from Supabase if table permissions are granted
+    // Fetch real orders with their order items from Supabase
     const { data: dbOrders, error } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, order_items(*)")
       .order("created_at", { ascending: false });
 
     if (!error && dbOrders && dbOrders.length > 0) {
@@ -73,6 +50,15 @@ export async function GET() {
           frontendStatus = o.status as LiveOrder["status"];
         }
 
+        const items = (o.order_items && o.order_items.length > 0)
+          ? o.order_items.map((oi: any) => ({
+              name: oi.name_at_order,
+              qty: oi.quantity,
+              price: Number(oi.price_at_order),
+              isVeg: true,
+            }))
+          : [{ name: "Selected Food Item", qty: 1, price: Number(o.item_total || 0), isVeg: false }];
+
         return {
           id: o.id,
           orderNumber: o.order_number || `#AB-${o.id.slice(0, 4)}`,
@@ -80,11 +66,11 @@ export async function GET() {
           customerPhone: o.customer_phone || "9876543210",
           deliveryArea: o.delivery_address || "Ambikapur Center",
           restaurantName: "The Royal Kitchen",
-          items: [{ name: "Handi Special Dum Biryani", qty: 1, price: Number(o.item_total || 320), isVeg: false }],
-          itemTotal: Number(o.item_total || 320),
+          items,
+          itemTotal: Number(o.item_total || 0),
           deliveryFee: Number(o.delivery_fee || 20),
           platformFee: Number(o.platform_fee || 5),
-          totalAmount: Number(o.total_amount || 345),
+          totalAmount: Number(o.total_amount || 0),
           paymentMethod: (o.payment_method as "COD" | "UPI") || "COD",
           paymentStatus: (o.payment_status as "pending" | "completed") || "pending",
           status: frontendStatus,
@@ -161,6 +147,18 @@ export async function POST(req: Request) {
 
       if (dbCreated && dbCreated[0]) {
         newOrder.id = dbCreated[0].id;
+
+        // Also save each item to order_items in Supabase
+        if (body.items && body.items.length > 0) {
+          const itemRows = body.items.map((it: any) => ({
+            order_id: dbCreated[0].id,
+            name_at_order: it.name,
+            price_at_order: it.price,
+            quantity: it.qty || 1,
+            subtotal: (it.price || 0) * (it.qty || 1),
+          }));
+          await supabase.from("order_items").insert(itemRows);
+        }
       }
       if (dbErr) console.warn("Supabase insert notice:", dbErr.message);
     } catch (e) {

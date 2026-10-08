@@ -176,10 +176,18 @@ export default function ProductDetailPage() {
   const totalPrice = finalUnitPrice * quantity;
 
   const handleAddToCart = () => {
+    try {
+      const saved = localStorage.getItem("ambibites_cart");
+      const currentCart = saved ? JSON.parse(saved) : {};
+      const existingQty = currentCart[product.id] || 0;
+      currentCart[product.id] = existingQty + quantity;
+      localStorage.setItem("ambibites_cart", JSON.stringify(currentCart));
+    } catch {}
+
     setIsAddedSuccess(true);
     setTimeout(() => {
-      router.push("/");
-    }, 1200);
+      router.push("/?openCart=true");
+    }, 800);
   };
 
   return (
