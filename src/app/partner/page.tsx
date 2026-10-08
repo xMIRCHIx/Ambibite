@@ -17,6 +17,7 @@ import {
   ToggleLeft,
   ChevronRight,
   Check,
+  Bike,
 } from "lucide-react";
 
 interface IncomingOrder {
@@ -28,6 +29,8 @@ interface IncomingOrder {
   items: { name: string; qty: number; price: number; isVeg?: boolean }[];
   totalAmount: number;
   status: "incoming" | "preparing" | "ready";
+  rawStatus: string;
+  riderName?: string | null;
   prepTimeMinutes: number;
 }
 
@@ -57,6 +60,8 @@ export default function RestaurantPartnerHub() {
             items: o.items || [],
             totalAmount: o.totalAmount,
             status: posStatus,
+            rawStatus: o.status,
+            riderName: o.riderName,
             prepTimeMinutes: o.prepTimeMinutes || 20,
           };
         });
@@ -64,6 +69,23 @@ export default function RestaurantPartnerHub() {
       }
     } catch (e) {
       console.warn("Partner fetch notice:", e);
+    }
+  };
+
+  const handleDispatchRider = async (orderId: string) => {
+    try {
+      await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "rider_assigned",
+          riderName: "Ramesh Kumar",
+        }),
+      });
+      fetchPartnerOrders();
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -319,9 +341,37 @@ export default function RestaurantPartnerHub() {
                     )}
 
                     {ord.status === "ready" && (
-                      <div className="w-full bg-slate-900 border border-emerald-500/30 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex items-center justify-center gap-2">
-                        <Check className="w-4 h-4" />
-                        <span>Waiting for Ambikapur Rider pickup...</span>
+                      <div className="w-full space-y-2">
+                        {ord.rawStatus === "picked_up" ? (
+                          <div className="bg-indigo-950/60 border border-indigo-500/40 p-2.5 rounded-xl text-center text-xs text-indigo-300 font-bold flex items-center justify-center gap-2">
+                            <Bike className="w-4 h-4 text-indigo-400" />
+                            <span>Picked Up by {ord.riderName || "Rider"} • On the way to Customer!</span>
+                          </div>
+                        ) : ord.rawStatus === "delivered" ? (
+                          <div className="bg-emerald-950/60 border border-emerald-500/40 p-2.5 rounded-xl text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span>Order Delivered to Customer • Payment Completed</span>
+                          </div>
+                        ) : ord.rawStatus === "rider_assigned" ? (
+                          <div className="bg-purple-950/60 border border-purple-500/40 p-2.5 rounded-xl text-center text-xs text-purple-300 font-bold flex items-center justify-center gap-2">
+                            <Bike className="w-4 h-4 text-purple-400 animate-pulse" />
+                            <span>Rider Assigned ({ord.riderName}) • Waiting for Rider to Accept & Pickup</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                            <div className="flex-1 bg-slate-900 border border-emerald-500/30 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex items-center justify-center gap-2">
+                              <Check className="w-4 h-4" />
+                              <span>Food Ready • Open to All Online Riders</span>
+                            </div>
+                            <button
+                              onClick={() => handleDispatchRider(ord.id)}
+                              className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                            >
+                              <Bike className="w-4 h-4" />
+                              <span>Dispatch to Rider</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

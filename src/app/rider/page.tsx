@@ -28,6 +28,7 @@ export default function RiderDashboard() {
   const [cashCollected, setCashCollected] = useState(420);
   const [todayEarnings, setTodayEarnings] = useState(150);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
 
   const fetchRiderOrders = async () => {
     try {
@@ -47,12 +48,36 @@ export default function RiderDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Find any active order assigned to this rider or pending rider action
-  const assignedOrder = liveOrders.find(
-    (o) =>
-      (o.riderName === currentRiderName || !o.riderName) &&
-      (o.status === "rider_assigned" || o.status === "picked_up")
-  );
+  const isMatchingRider = (riderNameInOrder: string | null) => {
+    if (!riderNameInOrder) return true; // Open to any available rider
+    const n1 = riderNameInOrder.toLowerCase();
+    const n2 = currentRiderName.toLowerCase();
+    if (n1 === n2) return true;
+    if (n1.startsWith("ramesh") && n2.startsWith("ramesh")) return true;
+    if (n1.startsWith("suresh") && n2.startsWith("suresh")) return true;
+    if (n1.startsWith("ajay") && n2.startsWith("ajay")) return true;
+    return false;
+  };
+
+  // Find all active orders available for this rider or pending in Ambikapur
+  const availableOrders = liveOrders.filter((o) => {
+    if (o.status === "delivered" || o.status === "cancelled") return false;
+    // In transit with this rider
+    if (o.status === "picked_up") {
+      return !o.riderName || isMatchingRider(o.riderName);
+    }
+    // Explicitly assigned to this rider or open
+    if (o.status === "rider_assigned") {
+      return !o.riderName || isMatchingRider(o.riderName);
+    }
+    // Food ready at restaurant awaiting pickup
+    if (o.status === "ready") {
+      return true;
+    }
+    return false;
+  });
+
+  const assignedOrder = availableOrders[selectedOrderIndex] || availableOrders[0];
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
@@ -192,6 +217,26 @@ export default function RiderDashboard() {
             </div>
           </div>
 
+          {/* Available Tasks Multi-Order Switcher */}
+          {availableOrders.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none bg-white p-2.5 rounded-2xl border border-slate-200">
+              <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">Tasks ({availableOrders.length}):</span>
+              {availableOrders.map((ord, i) => (
+                <button
+                  key={ord.id}
+                  onClick={() => setSelectedOrderIndex(i)}
+                  className={`px-3 py-1 rounded-xl text-xs font-black transition shrink-0 ${
+                    selectedOrderIndex === i
+                      ? "bg-orange-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {ord.orderNumber} {ord.status === "ready" ? "• Ready" : ord.status === "picked_up" ? "• In Transit" : "• Assigned"}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* ACTIVE DISPATCHED ORDER CARD */}
           {assignedOrder ? (
             <div className="bg-white rounded-3xl p-5 border border-orange-200 shadow-xl shadow-orange-500/5 relative overflow-hidden animate-in zoom-in-95 duration-200">
@@ -275,10 +320,12 @@ export default function RiderDashboard() {
 
               {/* ACTION BUTTONS (ACCEPT / REJECT OR DELIVER) */}
               <div className="mt-5 space-y-2">
-                {assignedOrder.status === "rider_assigned" ? (
+                {assignedOrder.status === "rider_assigned" || assignedOrder.status === "ready" ? (
                   <div className="space-y-2">
                     <span className="text-[10px] font-extrabold uppercase text-slate-400 text-center block tracking-wider">
-                      Dispatch Decision Required
+                      {assignedOrder.status === "ready"
+                        ? "Food Ready at Restaurant • Accept to Deliver"
+                        : "Task Assigned • Decision Required"}
                     </span>
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
@@ -286,7 +333,7 @@ export default function RiderDashboard() {
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-3 rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5 text-xs"
                       >
                         <Check className="w-4 h-4 stroke-[3]" />
-                        <span>ACCEPT TASK</span>
+                        <span>ACCEPT TASK (Earn ₹40)</span>
                       </button>
                       <button
                         onClick={() => handleRejectOrder(assignedOrder.id)}
@@ -300,14 +347,14 @@ export default function RiderDashboard() {
                 ) : (
                   <div>
                     <span className="text-[10px] font-extrabold uppercase text-slate-400 text-center block mb-2 tracking-wider">
-                      Active In Transit
+                      Active In Transit • Heading to Customer
                     </span>
                     <button
                       onClick={() => handleDeliverOrder(assignedOrder.id, assignedOrder.totalAmount)}
                       className="w-full bg-orange-600 hover:bg-orange-700 text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-xl shadow-orange-600/30 transition active:scale-98 flex items-center justify-center gap-2 text-xs"
                     >
                       <CheckCircle className="w-4 h-4" />
-                      <span>Collect ₹{assignedOrder.totalAmount} & Complete Delivery</span>
+                      <span>Collect ₹{assignedOrder.totalAmount} (COD) & Deliver Order</span>
                     </button>
                   </div>
                 )}
