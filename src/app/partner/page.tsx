@@ -88,12 +88,23 @@ export default function RestaurantPartnerHub() {
 
   // Kitchens State & Switcher
   const [kitchens, setKitchens] = useState<any[]>([]);
-  const [activeKitchenId, setActiveKitchenId] = useState<string>("11111111-1111-1111-1111-111111111111");
+  const [activeKitchenId, setActiveKitchenId] = useState<string>("");
   const [isKitchenDropdownOpen, setIsKitchenDropdownOpen] = useState(false);
 
   // Active kitchen object
   const activeKitchen =
     kitchens.find((k) => k.id === activeKitchenId) ||
+    (currentUser?.restaurantId
+      ? {
+          id: currentUser.restaurantId,
+          name: currentUser.restaurantName || currentUser.name || "My Kitchen",
+          area: currentUser.area || "Ambikapur",
+          cuisine: "Ambikapur Kitchen",
+          is_open: true,
+          banner_url: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg",
+          delivery_time_text: "25-30 min",
+        }
+      : null) ||
     kitchens[0] || {
       id: "11111111-1111-1111-1111-111111111111",
       name: "The Royal Kitchen",
@@ -157,9 +168,10 @@ export default function RestaurantPartnerHub() {
   };
 
   // 2. Fetch Menu Items for Selected Kitchen
-  const fetchMenuItems = async () => {
+  const fetchMenuItems = async (targetKitchenId?: string) => {
+    const targetId = targetKitchenId || activeKitchenId;
+    if (!targetId) return;
     try {
-      const targetId = activeKitchenId || "11111111-1111-1111-1111-111111111111";
       const res = await fetch(`/api/menu?restaurantId=${targetId}`);
       const data = await res.json();
       const list = data.items || data.menuItems || [];
@@ -237,9 +249,10 @@ export default function RestaurantPartnerHub() {
           return;
         }
         setCurrentUser(data.user);
-        if (data.user.role === "partner" && data.user.restaurantId) {
-          setActiveKitchenId(data.user.restaurantId);
-        }
+        const resolvedId =
+          data.user.restaurantId || "11111111-1111-1111-1111-111111111111";
+        setActiveKitchenId(resolvedId);
+        fetchMenuItems(resolvedId);
         setAuthChecking(false);
       })
       .catch(() => {
@@ -260,13 +273,15 @@ export default function RestaurantPartnerHub() {
   }, []);
 
   useEffect(() => {
-    fetchMenuItems();
-    if (activeKitchen) {
-      setEditKitchenName(activeKitchen.name);
-      setEditKitchenArea(activeKitchen.area || activeKitchen.address || "");
-      setEditKitchenCuisine(activeKitchen.cuisine || "");
-      setEditKitchenDeliveryTime(activeKitchen.delivery_time_text || "25-30 min");
-      setEditKitchenBanner(activeKitchen.banner_url || "");
+    if (activeKitchenId) {
+      fetchMenuItems(activeKitchenId);
+      if (activeKitchen) {
+        setEditKitchenName(activeKitchen.name);
+        setEditKitchenArea(activeKitchen.area || activeKitchen.address || "");
+        setEditKitchenCuisine(activeKitchen.cuisine || "");
+        setEditKitchenDeliveryTime(activeKitchen.delivery_time_text || "25-30 min");
+        setEditKitchenBanner(activeKitchen.banner_url || "");
+      }
     }
   }, [activeKitchenId]);
 
@@ -610,6 +625,15 @@ export default function RestaurantPartnerHub() {
   });
 
   const incomingCount = orders.filter((o) => o.status === "incoming").length;
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <span className="text-xs font-bold text-slate-300">Loading Secure Kitchen Portal...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col">

@@ -50,6 +50,10 @@ const legacyMap: Record<string, string> = {
   "rest-2": "22222222-2222-2222-2222-222222222222",
   "rest-3": "33333333-3333-3333-3333-333333333333",
   "rest-4": "44444444-4444-4444-4444-444444444444",
+  "the-royal-kitchen": "11111111-1111-1111-1111-111111111111",
+  "burger-hub": "22222222-2222-2222-2222-222222222222",
+  "ambikapur-dosa-plaza": "33333333-3333-3333-3333-333333333333",
+  "kolkata-kathi-rolls": "44444444-4444-4444-4444-444444444444",
 };
 
 const RESTAURANT_DATA: { [key: string]: any } = {
@@ -178,10 +182,12 @@ const RESTAURANT_DATA: { [key: string]: any } = {
 export default function RestaurantDetailPage() {
   const params = useParams();
   const restId = (params?.id as string) || "rest-1";
-
-  const [restaurant, setRestaurant] = useState<any>(
-    RESTAURANT_DATA[restId] || RESTAURANT_DATA["rest-1"]
-  );
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [restaurant, setRestaurant] = useState<any>(() => {
+    const resolvedId = legacyMap[restId] || restId;
+    const base = RESTAURANT_DATA[resolvedId] || RESTAURANT_DATA[restId] || RESTAURANT_DATA["rest-1"];
+    return { ...base, menu: [] };
+  });
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState<{ [id: string]: number }>({});
   const [isLiked, setIsLiked] = useState(false);
@@ -225,10 +231,11 @@ export default function RestaurantDetailPage() {
                 description: m.description || "",
                 imageUrl: m.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
               }));
-            } else if (RESTAURANT_DATA[restId]?.menu) {
+            } else if (RESTAURANT_DATA[restId]?.menu?.length > 0) {
               fetchedMenu = RESTAURANT_DATA[restId].menu;
             } else {
-              fetchedMenu = RESTAURANT_DATA["rest-1"].menu;
+              // Strictly empty menu if no dishes exist for this specific restaurant
+              fetchedMenu = [];
             }
 
             const rawBanner = matched.banner_url || matched.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg";
@@ -251,6 +258,8 @@ export default function RestaurantDetailPage() {
         }
       } catch (err) {
         console.warn("Using fallback restaurant data:", err);
+      } finally {
+        setMenuLoading(false);
       }
     }
     loadDynamicRestaurant();
@@ -407,8 +416,27 @@ export default function RestaurantDetailPage() {
             {activeCategory === "All" ? "Full Menu Selection" : activeCategory} ({filteredMenu.length})
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMenu.map((dish: MenuItem) => {
+          {menuLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2].map((n) => (
+                <div key={n} className="bg-white p-4 rounded-3xl border border-slate-200 animate-pulse h-36 flex justify-between">
+                  <div className="space-y-2.5 flex-1 pr-4">
+                    <div className="h-4 bg-slate-200 rounded w-3/4" />
+                    <div className="h-3 bg-slate-100 rounded w-1/4" />
+                    <div className="h-3 bg-slate-100 rounded w-full" />
+                  </div>
+                  <div className="w-28 h-24 bg-slate-200 rounded-2xl shrink-0" />
+                </div>
+              ))}
+            </div>
+          ) : filteredMenu.length === 0 ? (
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center space-y-2">
+              <p className="text-sm font-bold text-slate-700">No dishes available in this category</p>
+              <p className="text-xs text-slate-400">Add dishes to this kitchen via Partner POS.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredMenu.map((dish: MenuItem) => {
               const qty = cart[dish.id] || 0;
               return (
                 <div
@@ -500,6 +528,7 @@ export default function RestaurantDetailPage() {
               );
             })}
           </div>
+        )}
         </div>
 
       </main>
