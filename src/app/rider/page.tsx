@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ToggleRight,
   ToggleLeft,
@@ -19,16 +20,46 @@ import {
   X,
   RefreshCw,
   Bike,
+  LogOut,
+  Lock,
 } from "lucide-react";
 
 export default function RiderDashboard() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(true);
-  const [currentRiderName, setCurrentRiderName] = useState("Ramesh Kumar");
+  const [currentRiderName, setCurrentRiderName] = useState("Rahul Sharma");
   const [liveOrders, setLiveOrders] = useState<any[]>([]);
   const [cashCollected, setCashCollected] = useState(420);
   const [todayEarnings, setTodayEarnings] = useState(150);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
+
+  // Check authenticated rider session
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.authenticated || !data.user) {
+          router.push("/login?role=rider");
+          return;
+        }
+        if (data.user.role !== "rider" && data.user.role !== "admin") {
+          router.push("/login?role=rider");
+          return;
+        }
+        setCurrentUser(data.user);
+        setCurrentRiderName(data.user.name);
+      })
+      .catch(() => {
+        router.push("/login?role=rider");
+      });
+  }, [router]);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
 
   const fetchRiderOrders = async () => {
     try {
@@ -175,7 +206,7 @@ export default function RiderDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Link
               href="/"
               className="text-[10px] font-bold text-slate-500 hover:text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg"
@@ -183,8 +214,15 @@ export default function RiderDashboard() {
               Home
             </Link>
             <button
+              onClick={handleLogout}
+              className="text-[10px] font-bold text-slate-500 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-2 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+              title="Logout from Rider session"
+            >
+              <LogOut className="w-3 h-3" />
+            </button>
+            <button
               onClick={() => setIsOnline(!isOnline)}
-              className="transition active:scale-90"
+              className="transition active:scale-90 cursor-pointer ml-1"
             >
               {isOnline ? (
                 <ToggleRight className="w-9 h-9 text-emerald-500" />

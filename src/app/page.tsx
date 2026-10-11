@@ -702,6 +702,9 @@ export default function CustomerHome() {
                 <Link href="/partner" className="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white transition">
                   Restaurant Hub
                 </Link>
+                <Link href="/login" className="px-3 py-1 rounded-full text-orange-600 bg-white shadow-xs font-black hover:bg-orange-600 hover:text-white transition flex items-center gap-1">
+                  <span>Login</span>
+                </Link>
               </div>
 
               {/* Desktop Search & Veg toggle (Hidden on mobile, mobile has row below) */}

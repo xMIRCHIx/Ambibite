@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSessionUser } from "@/lib/auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://wkxqknaznpzvrylsnorl.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -62,10 +63,17 @@ export async function POST(req: Request) {
       finalImageUrl = body.images.length === 1 ? body.images[0] : JSON.stringify(body.images);
     }
 
-    const resolvedRestId =
+    // Zero-Trust Security: Enforce authenticated session restaurantId if partner is logged in
+    const session = await getSessionUser();
+    let resolvedRestId =
       legacyMap[body.restaurantId || ""] ||
       body.restaurantId ||
       "11111111-1111-1111-1111-111111111111";
+
+    if (session?.role === "partner" && session.restaurantId) {
+      // OVERRIDE: Client cannot inject another restaurant ID!
+      resolvedRestId = session.restaurantId;
+    }
 
     const { data, error } = await supabase
       .from("menu_items")
@@ -124,11 +132,17 @@ export async function PATCH(req: Request) {
       updates.image_url = body.imageUrl;
     }
 
-    const { data, error } = await supabase
+    const session = await getSessionUser();
+    let query = supabase
       .from("menu_items")
       .update(updates)
-      .eq("id", itemId)
-      .select();
+      .eq("id", itemId);
+
+    if (session?.role === "partner" && session.restaurantId) {
+      query = query.eq("restaurant_id", session.restaurantId);
+    }
+
+    const { data, error } = await query.select();
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -154,10 +168,17 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "Missing item id" }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const session = await getSessionUser();
+    let query = supabase
       .from("menu_items")
       .delete()
       .eq("id", id);
+
+    if (session?.role === "partner" && session.restaurantId) {
+      query = query.eq("restaurant_id", session.restaurantId);
+    }
+
+    const { error } = await query;
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Store,
   Bell,
@@ -32,6 +33,8 @@ import {
   Layers,
   ChevronDown,
   ShoppingBag,
+  LogOut,
+  Lock,
 } from "lucide-react";
 
 interface IncomingOrder {
@@ -75,6 +78,10 @@ const CATEGORY_PRESETS = [
 ];
 
 export default function RestaurantPartnerHub() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
   const [activeTab, setActiveTab] = useState<"orders" | "menu" | "kitchenSettings">("orders");
   const [isSoundMuted, setIsSoundMuted] = useState(false);
   const [orders, setOrders] = useState<IncomingOrder[]>([]);
@@ -214,6 +221,35 @@ export default function RestaurantPartnerHub() {
     } catch (e) {
       console.warn("Partner orders notice:", e);
     }
+  };
+
+  // Check authenticated session
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.authenticated || !data.user) {
+          router.push("/login");
+          return;
+        }
+        if (data.user.role !== "partner" && data.user.role !== "admin") {
+          router.push("/login");
+          return;
+        }
+        setCurrentUser(data.user);
+        if (data.user.role === "partner" && data.user.restaurantId) {
+          setActiveKitchenId(data.user.restaurantId);
+        }
+        setAuthChecking(false);
+      })
+      .catch(() => {
+        router.push("/login");
+      });
+  }, [router]);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
   };
 
   useEffect(() => {
@@ -594,60 +630,76 @@ export default function RestaurantPartnerHub() {
               <ChefHat className="w-5 h-5" />
             </div>
 
-            {/* Active Kitchen Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setIsKitchenDropdownOpen(!isKitchenDropdownOpen)}
-                className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 px-3 py-1.5 rounded-xl transition cursor-pointer text-left"
-              >
+            {/* Active Kitchen Selector or Locked Partner Card */}
+            {currentUser?.role === "partner" ? (
+              <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-black text-white">{activeKitchen.name}</span>
-                    <span className="bg-orange-500/20 text-orange-400 text-[9px] font-black uppercase px-1.5 py-0.2 rounded">
-                      POS
+                    <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase px-1.5 py-0.2 rounded flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Authenticated
                     </span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-medium block">
-                    {activeKitchen.area || "Ambikapur"} • ID: {activeKitchen.id.slice(0, 8)}...
+                    {activeKitchen.area || "Ambikapur"} • {currentUser.email || currentUser.phone || "Verified Partner"}
                   </span>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
-              </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => setIsKitchenDropdownOpen(!isKitchenDropdownOpen)}
+                  className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 px-3 py-1.5 rounded-xl transition cursor-pointer text-left"
+                >
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white">{activeKitchen.name}</span>
+                      <span className="bg-purple-500/20 text-purple-400 text-[9px] font-black uppercase px-1.5 py-0.2 rounded">
+                        Admin Mode
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium block">
+                      {activeKitchen.area || "Ambikapur"} • Switch Kitchen
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+                </button>
 
-              {/* Kitchens Dropdown Modal / Popover */}
-              {isKitchenDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2.5 py-1.5">
-                    Switch Kitchen (Development Mode)
+                {/* Kitchens Dropdown Modal / Popover */}
+                {isKitchenDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2.5 py-1.5">
+                      Switch Kitchen (Admin Access)
+                    </div>
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                      {kitchens.map((k) => (
+                        <button
+                          key={k.id}
+                          onClick={() => {
+                            setActiveKitchenId(k.id);
+                            setIsKitchenDropdownOpen(false);
+                            showToast(`Switched to ${k.name}`);
+                          }}
+                          className={`w-full text-left p-2 rounded-xl transition text-xs flex items-center justify-between ${
+                            k.id === activeKitchen.id
+                              ? "bg-orange-600/20 border border-orange-500/50 text-orange-300 font-black"
+                              : "hover:bg-slate-800 text-slate-300"
+                          }`}
+                        >
+                          <div>
+                            <div className="font-bold">{k.name}</div>
+                            <span className="text-[10px] text-slate-400">{k.area || "Ambikapur"}</span>
+                          </div>
+                          {k.id === activeKitchen.id && (
+                            <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1 max-h-60 overflow-y-auto">
-                    {kitchens.map((k) => (
-                      <button
-                        key={k.id}
-                        onClick={() => {
-                          setActiveKitchenId(k.id);
-                          setIsKitchenDropdownOpen(false);
-                          showToast(`Switched to ${k.name}`);
-                        }}
-                        className={`w-full text-left p-2 rounded-xl transition text-xs flex items-center justify-between ${
-                          k.id === activeKitchen.id
-                            ? "bg-orange-600/20 border border-orange-500/50 text-orange-300 font-black"
-                            : "hover:bg-slate-800 text-slate-300"
-                        }`}
-                      >
-                        <div>
-                          <div className="font-bold">{k.name}</div>
-                          <span className="text-[10px] text-slate-400">{k.area || "Ambikapur"}</span>
-                        </div>
-                        {k.id === activeKitchen.id && (
-                          <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Navigation Tabs */}
@@ -714,6 +766,16 @@ export default function RestaurantPartnerHub() {
               <span>Customer View</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+              title="Sign out of Kitchen POS"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </header>
