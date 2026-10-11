@@ -68,7 +68,7 @@ const RESTAURANTS: Restaurant[] = [
     distance: "1.8 km",
     area: "Gandhi Chowk",
     discount: "20% OFF UPTO ₹100",
-    imageUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg",
     isOpen: true,
   },
   {
@@ -81,7 +81,7 @@ const RESTAURANTS: Restaurant[] = [
     distance: "2.3 km",
     area: "Ghadi Chowk",
     discount: "FLAT ₹50 OFF",
-    imageUrl: "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=800&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/burger_hub.jpg",
     isOpen: true,
   },
   {
@@ -94,7 +94,7 @@ const RESTAURANTS: Restaurant[] = [
     distance: "3.1 km",
     area: "Ring Road East",
     discount: "ITEMS AT ₹99",
-    imageUrl: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=800&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/dosa_plaza.jpg",
     isOpen: true,
   },
   {
@@ -107,20 +107,20 @@ const RESTAURANTS: Restaurant[] = [
     distance: "1.2 km",
     area: "Sadhar Hospital Road",
     discount: "FREE DELIVERY",
-    imageUrl: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?q=80&w=800&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/kolkata_kathi_rolls.jpg",
     isOpen: true,
   },
 ];
 
 const DISH_CATEGORIES = [
-  { name: "Biryani", image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=300&auto=format&fit=crop" },
-  { name: "Rolls & Wraps", image: "https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=300&auto=format&fit=crop" },
-  { name: "Burgers", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=300&auto=format&fit=crop" },
-  { name: "Thali Meals", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=300&auto=format&fit=crop" },
-  { name: "Pizzas", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=300&auto=format&fit=crop" },
-  { name: "Chaat & Street", image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=300&auto=format&fit=crop" },
-  { name: "Dosas", image: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=300&auto=format&fit=crop" },
-  { name: "Shakes & Chai", image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?q=80&w=300&auto=format&fit=crop" },
+  { name: "Biryani", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg" },
+  { name: "Rolls & Wraps", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/paneer_tikka_butter_roll.jpg" },
+  { name: "Burgers", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg" },
+  { name: "Thali Meals", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/ambikapur_royal_veg_thali.jpg" },
+  { name: "Pizzas", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg" },
+  { name: "Chaat & Street", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/crispy_aloo_tikki_chaat.jpg" },
+  { name: "Dosas", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/mysore_masala_butter_dosa.jpg" },
+  { name: "Shakes & Chai", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/fresh_mango_kulfi_thickshake.jpg" },
 ];
 
 const MENU_ITEMS: MenuItem[] = [
@@ -137,7 +137,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.8,
     votes: 420,
     description: "Slow wood-fired dum cooked aromatic basmati with tender marinated chicken pieces, egg and saffron ghee.",
-    imageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
   },
   {
     id: "2",
@@ -151,7 +151,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.6,
     votes: 180,
     description: "Tandoori grilled cottage cheese cubes wrapped in fresh butter layered paratha with spiced onion salsa.",
-    imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/paneer_tikka_butter_roll.jpg",
   },
   {
     id: "3",
@@ -165,7 +165,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.7,
     votes: 215,
     description: "Classic tender bone-in chicken slow roasted in coal oven with Kashmiri degi mirch & hung curd.",
-    imageUrl: "https://images.unsplash.com/photo-1598514982205-f36b96d1e8d4?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/tandoori_roasted_chicken.jpg",
   },
   {
     id: "4",
@@ -179,7 +179,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.5,
     votes: 190,
     description: "Deluxe wholesome thali with Paneer Butter Masala, Dal Tadka, Seasonal Sabzi, 4 Tawa Rotis, Jeera Rice, Salad & Sweet.",
-    imageUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/ambikapur_royal_veg_thali.jpg",
   },
   {
     id: "5",
@@ -193,7 +193,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.6,
     votes: 130,
     description: "Crispy herb patty loaded with molten cheddar cheese, pickled jalapeños and secret house dressing.",
-    imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg",
   },
   {
     id: "6",
@@ -206,7 +206,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.8,
     votes: 95,
     description: "Golden fried juicy chicken wings tossed vigorously in fiery African peri-peri spice dust.",
-    imageUrl: "https://images.unsplash.com/photo-1527477378408-1bc097a87113?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/peri_peri_chicken_wings.jpg",
   },
   {
     id: "7",
@@ -220,7 +220,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     votes: 310,
     description: "Crispy golden fermented crepe smeared with red chilli garlic paste, filled with spiced potato mash. Served with 3 chutneys & sambar.",
-    imageUrl: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/mysore_masala_butter_dosa.jpg",
   },
   {
     id: "8",
@@ -233,7 +233,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.7,
     votes: 280,
     description: "Fresh paratha layered with twin beaten eggs, stuffed with juicy charred chicken tikkas, lemon & crunchy onions.",
-    imageUrl: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_egg_chicken_roll.jpg",
   },
   {
     id: "9",
@@ -246,7 +246,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.4,
     votes: 155,
     description: "Hot crisp potato cakes bathed in thick spiced curd, tangy saunth, spicy coriander chutney and sev.",
-    imageUrl: "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/crispy_aloo_tikki_chaat.jpg",
   },
   {
     id: "10",
@@ -259,7 +259,7 @@ const MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     votes: 210,
     description: "Rich blended mango shake infused with cardamom kulfi chunks and roasted almonds.",
-    imageUrl: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?q=80&w=600&auto=format&fit=crop",
+    imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/fresh_mango_kulfi_thickshake.jpg",
   },
 ];
 
@@ -377,7 +377,59 @@ export default function CustomerHome() {
     }
   };
 
-  const filteredItems = MENU_ITEMS.filter((item) => {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(RESTAURANTS);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(MENU_ITEMS);
+
+  // Live fetch from Supabase
+  useEffect(() => {
+    fetch("/api/restaurants")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.restaurants && data.restaurants.length > 0) {
+          const mapped: Restaurant[] = data.restaurants.map((r: any) => ({
+            id: r.slug || r.id,
+            name: r.name,
+            cuisine: r.cuisine,
+            rating: Number(r.rating || 4.5),
+            reviews: 420,
+            deliveryTime: r.delivery_time_text || "25-30 min",
+            distance: "1.8 km",
+            area: r.area,
+            discount: `${r.commission_percent || 20}% OFF`,
+            imageUrl: r.banner_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg",
+            isOpen: r.is_open && !r.is_blocked,
+          }));
+          setRestaurants(mapped);
+        }
+      })
+      .catch((err) => console.warn("Live restaurants notice:", err));
+
+    fetch("/api/menu")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.menuItems && data.menuItems.length > 0) {
+          const mapped: MenuItem[] = data.menuItems.map((m: any, idx: number) => ({
+            id: m.id || String(idx + 1),
+            restaurantId: m.restaurant_id,
+            restaurantName: m.restaurants?.name || "Ambikapur Kitchen",
+            name: m.name,
+            category: m.category,
+            price: Number(m.price),
+            originalPrice: m.original_price ? Number(m.original_price) : undefined,
+            isVeg: m.is_veg,
+            isBestseller: m.is_bestseller,
+            rating: 4.8,
+            votes: 180,
+            description: m.description,
+            imageUrl: m.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
+          }));
+          setMenuItems(mapped);
+        }
+      })
+      .catch((err) => console.warn("Live menu notice:", err));
+  }, []);
+
+  const filteredItems = menuItems.filter((item) => {
     if (selectedFilter !== "All" && item.category !== selectedFilter) return false;
     if (isVegOnly && !item.isVeg) return false;
     if (
@@ -391,8 +443,23 @@ export default function CustomerHome() {
   });
 
   const cartItems = Object.entries(cart).map(([id, qty]) => {
-    const item = MENU_ITEMS.find((m) => m.id === id)!;
-    return { ...item, qty };
+    const item = menuItems.find((m) => m.id === id) || MENU_ITEMS.find((m) => m.id === id);
+    return {
+      ...(item || {
+        id,
+        name: "Food Item",
+        price: 100,
+        isVeg: true,
+        restaurantName: "The Royal Kitchen",
+        restaurantId: "rest-1",
+        category: "Main Course",
+        rating: 4.5,
+        votes: 100,
+        description: "",
+        imageUrl: "",
+      }),
+      qty,
+    };
   });
 
   const itemTotal = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
@@ -597,12 +664,12 @@ export default function CustomerHome() {
               <p className="text-xs text-slate-500 font-medium">Handpicked kitchens with highest food hygiene & 4.5+ ratings</p>
             </div>
             <span className="text-xs font-bold text-slate-400 bg-slate-200/60 px-3 py-1 rounded-full">
-              {RESTAURANTS.length} Kitchens Live
+              {restaurants.length} Kitchens Live
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {RESTAURANTS.map((rest) => (
+            {restaurants.map((rest) => (
               <Link
                 key={rest.id}
                 href={`/restaurant/${rest.id}`}

@@ -18,6 +18,10 @@ import {
   ChevronRight,
   Check,
   Bike,
+  Plus,
+  UploadCloud,
+  X,
+  Loader2,
 } from "lucide-react";
 
 interface IncomingOrder {
@@ -89,18 +93,105 @@ export default function RestaurantPartnerHub() {
     }
   };
 
+  const [menuItems, setMenuItems] = useState<any[]>([
+    { id: "1", name: "Special Chicken Dum Biryani", price: 320, inStock: true },
+    { id: "2", name: "Paneer Tikka Butter Roll", price: 120, inStock: true },
+    { id: "3", name: "Roasted Chicken Half", price: 250, inStock: true },
+    { id: "4", name: "Ambikapur Royal Veg Thali", price: 180, inStock: true },
+  ]);
+
+  // Add dish state
+  const [showAddDish, setShowAddDish] = useState(false);
+  const [dishUploading, setDishUploading] = useState(false);
+  const [dishName, setDishName] = useState("");
+  const [dishPrice, setDishPrice] = useState("");
+  const [dishCategory, setDishCategory] = useState("Main Course");
+  const [dishIsVeg, setDishIsVeg] = useState(true);
+  const [dishImageUrl, setDishImageUrl] = useState("");
+
+  const fetchMenuItems = async () => {
+    try {
+      const res = await fetch("/api/menu");
+      const data = await res.json();
+      if (data.success && data.items?.length > 0) {
+        setMenuItems(
+          data.items.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            price: m.price,
+            inStock: m.in_stock !== false,
+            imageUrl: m.image_url,
+            category: m.category,
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("Menu fetch error:", e);
+    }
+  };
+
   useEffect(() => {
     fetchPartnerOrders();
+    fetchMenuItems();
     const interval = setInterval(fetchPartnerOrders, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  const [menuItems, setMenuItems] = useState([
-    { id: 1, name: "Special Chicken Dum Biryani", price: 320, inStock: true },
-    { id: 2, name: "Paneer Tikka Butter Roll", price: 120, inStock: true },
-    { id: 3, name: "Roasted Chicken Half", price: 250, inStock: true },
-    { id: 4, name: "Fresh Mango Kulfi Shake", price: 90, inStock: false },
-  ]);
+  const handleDishUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDishUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "food");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setDishImageUrl(data.url);
+      } else {
+        alert("Upload failed: " + (data.error || "Unknown"));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setDishUploading(false);
+    }
+  };
+
+  const handleSaveDish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dishName || !dishPrice) {
+      alert("Name and price are required");
+      return;
+    }
+    try {
+      const res = await fetch("/api/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: dishName,
+          price: Number(dishPrice),
+          category: dishCategory,
+          is_veg: dishIsVeg,
+          image_url: dishImageUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+          description: "Freshly prepared in Ambikapur kitchen.",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowAddDish(false);
+        setDishName("");
+        setDishPrice("");
+        setDishImageUrl("");
+        fetchMenuItems();
+      } else {
+        alert("Failed to add dish: " + (data.error || "Unknown"));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
 
   const handleAccept = async (orderId: string) => {
     try {
@@ -141,10 +232,19 @@ export default function RestaurantPartnerHub() {
     }
   };
 
-  const toggleStock = (id: number) => {
+  const toggleStock = async (id: string | number, currentStock: boolean) => {
     setMenuItems((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, inStock: !m.inStock } : m))
+      prev.map((m) => (m.id === id ? { ...m, inStock: !currentStock } : m))
     );
+    try {
+      await fetch("/api/menu", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: id, in_stock: !currentStock }),
+      });
+    } catch (e) {
+      console.error("Stock update error:", e);
+    }
   };
 
   const incomingCount = orders.filter((o) => o.status === "incoming").length;
@@ -387,9 +487,13 @@ export default function RestaurantPartnerHub() {
           <div className="bg-slate-950 rounded-3xl p-6 border border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-black text-white">Menu Stock Toggles</h3>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
-                Instant Update
-              </span>
+              <button
+                onClick={() => setShowAddDish(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Food Item</span>
+              </button>
             </div>
             <p className="text-xs text-slate-400 mb-4">
               Toggle items out-of-stock instantly so Ambikapur customers cannot order finished items.
@@ -401,13 +505,22 @@ export default function RestaurantPartnerHub() {
                   key={item.id}
                   className="bg-slate-900 p-3 rounded-2xl border border-slate-800 flex items-center justify-between"
                 >
-                  <div>
-                    <h4 className="text-xs font-bold text-white">{item.name}</h4>
-                    <span className="text-xs font-semibold text-slate-400">₹{item.price}</span>
+                  <div className="flex items-center gap-3">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-700"
+                      />
+                    )}
+                    <div>
+                      <h4 className="text-xs font-bold text-white">{item.name}</h4>
+                      <span className="text-xs font-semibold text-slate-400">₹{item.price}</span>
+                    </div>
                   </div>
 
                   <button
-                    onClick={() => toggleStock(item.id)}
+                    onClick={() => toggleStock(item.id, item.inStock)}
                     className="flex items-center gap-1.5 transition cursor-pointer"
                   >
                     {item.inStock ? (
@@ -452,6 +565,160 @@ export default function RestaurantPartnerHub() {
         </div>
 
       </div>
+
+      {/* Add Dish Modal with Cloudflare R2 Upload */}
+      {showAddDish && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative text-white shadow-2xl animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setShowAddDish(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-black mb-1 flex items-center gap-2">
+              <ChefHat className="w-5 h-5 text-orange-500" />
+              <span>Add Dish to Live Menu</span>
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Add food photo & pricing. Automatically uploads to Cloudflare R2 CDN & updates Supabase.
+            </p>
+
+            <form onSubmit={handleSaveDish} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Dish Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Chicken Dum Biryani"
+                  value={dishName}
+                  onChange={(e) => setDishName(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="250"
+                    value={dishPrice}
+                    onChange={(e) => setDishPrice(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Food Type
+                  </label>
+                  <div className="flex bg-slate-800 border border-slate-700 rounded-xl p-1">
+                    <button
+                      type="button"
+                      onClick={() => setDishIsVeg(true)}
+                      className={`flex-1 text-xs font-bold py-1.5 rounded-lg transition ${
+                        dishIsVeg ? "bg-emerald-600 text-white" : "text-slate-400"
+                      }`}
+                    >
+                      Veg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDishIsVeg(false)}
+                      className={`flex-1 text-xs font-bold py-1.5 rounded-lg transition ${
+                        !dishIsVeg ? "bg-rose-600 text-white" : "text-slate-400"
+                      }`}
+                    >
+                      Non-Veg
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Category
+                </label>
+                <select
+                  value={dishCategory}
+                  onChange={(e) => setDishCategory(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                >
+                  <option value="Biryani & Rice">Biryani & Rice</option>
+                  <option value="Main Course">Main Course</option>
+                  <option value="Rolls & Starters">Rolls & Starters</option>
+                  <option value="Burgers & Fast Food">Burgers & Fast Food</option>
+                  <option value="Thalis">Thalis</option>
+                  <option value="Beverages & Shakes">Beverages & Shakes</option>
+                  <option value="Desserts">Desserts</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Food Photo (Uploads to Cloudflare R2)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer transition">
+                    {dishUploading ? (
+                      <div className="flex items-center gap-2 text-xs text-orange-400 font-bold">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Uploading to Cloudflare R2...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
+                        <UploadCloud className="w-4 h-4 text-orange-400" />
+                        <span>Click to Select & Upload Photo</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleDishUpload}
+                      disabled={dishUploading}
+                      className="hidden"
+                    />
+                  </label>
+                  {dishImageUrl && (
+                    <img
+                      src={dishImageUrl}
+                      alt="Uploaded food"
+                      className="w-14 h-14 rounded-xl object-cover border border-emerald-500 shadow"
+                    />
+                  )}
+                </div>
+                {dishImageUrl && (
+                  <p className="text-[10px] text-emerald-400 font-bold mt-1 truncate">
+                    Cloudflare CDN: {dishImageUrl}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDish(false)}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={dishUploading}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black py-2.5 rounded-xl text-xs transition shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2"
+                >
+                  <span>Save Dish</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -27,6 +27,10 @@ import {
   ExternalLink,
   DollarSign,
   Download,
+  Upload,
+  Plus,
+  Utensils,
+  Image as ImageIcon,
 } from "lucide-react";
 
 export interface LiveOrderData {
@@ -59,13 +63,41 @@ export default function AdminDashboard() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // State: Restaurants
-  const [restaurants, setRestaurants] = useState([
-    { id: 1, name: "The Royal Kitchen (Gandhi Chowk)", area: "Gandhi Chowk", phone: "+91 98261 44551", commission: "20%", status: "Open", ordersToday: 38, isBlocked: false },
-    { id: 2, name: "Burger Hub & Cafe (Ghadi Chowk)", area: "Ghadi Chowk", phone: "+91 70002 99120", commission: "20%", status: "Open", ordersToday: 26, isBlocked: false },
-    { id: 3, name: "Ambikapur Dosa Plaza (Ring Road)", area: "Ring Road", phone: "+91 94252 11029", commission: "20%", status: "Closed", ordersToday: 12, isBlocked: false },
-    { id: 4, name: "Kolkata Kathi Rolls Corner", area: "Hospital Road", phone: "+91 99814 77218", commission: "20%", status: "Open", ordersToday: 9, isBlocked: false },
-  ]);
+  // State: Dynamic Restaurants from Supabase
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [isLoadingRest, setIsLoadingRest] = useState(false);
+
+  // Modal States: Add Kitchen & Add Dish
+  const [isAddKitchenOpen, setIsAddKitchenOpen] = useState(false);
+  const [isAddDishOpen, setIsAddDishOpen] = useState(false);
+
+  // New Kitchen Form State
+  const [newKitchen, setNewKitchen] = useState({
+    name: "",
+    cuisine: "North Indian, Mughlai, Biryani",
+    area: "Gandhi Chowk",
+    address: "",
+    phone: "+91 ",
+    deliveryTime: "25-30 min",
+    commissionPercent: 20,
+    bannerUrl: "",
+  });
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+
+  // New Dish Form State
+  const [newDish, setNewDish] = useState({
+    restaurantId: "",
+    name: "",
+    category: "Main Course",
+    price: "",
+    originalPrice: "",
+    isVeg: true,
+    isBestseller: false,
+    description: "",
+    imageUrl: "",
+  });
+  const [isUploadingDishImg, setIsUploadingDishImg] = useState(false);
 
   // State: Riders
   const [riders, setRiders] = useState([
@@ -74,6 +106,33 @@ export default function AdminDashboard() {
     { id: 3, name: "Ajay Patel", phone: "+91 99814 55667", vehicle: "Bajaj Pulsar (CG 15)", status: "Available", cashHeld: 1240, completedToday: 14, isOnline: true },
     { id: 4, name: "Deepak Sahu", phone: "+91 91312 88990", vehicle: "TVS Jupiter (CG 15)", status: "Offline", cashHeld: 0, completedToday: 0, isOnline: false },
   ]);
+
+  const fetchRestaurants = async () => {
+    setIsLoadingRest(true);
+    try {
+      const res = await fetch("/api/restaurants");
+      const data = await res.json();
+      if (data.success && data.restaurants) {
+        setRestaurants(data.restaurants);
+      }
+    } catch (e) {
+      console.warn("Error fetching restaurants:", e);
+    } finally {
+      setIsLoadingRest(false);
+    }
+  };
+
+  const fetchMenuItems = async () => {
+    try {
+      const res = await fetch("/api/menu");
+      const data = await res.json();
+      if (data.success && data.menuItems) {
+        setMenuItems(data.menuItems);
+      }
+    } catch (e) {
+      console.warn("Error fetching menu items:", e);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -89,9 +148,121 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 3000);
+    fetchRestaurants();
+    fetchMenuItems();
+    const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // Upload to Cloudflare R2
+  const handleUploadImage = async (file: File, type: "kitchen" | "dish") => {
+    if (type === "kitchen") setIsUploadingBanner(true);
+    else setIsUploadingDishImg(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success && data.url) {
+        if (type === "kitchen") {
+          setNewKitchen((prev) => ({ ...prev, bannerUrl: data.url }));
+        } else {
+          setNewDish((prev) => ({ ...prev, imageUrl: data.url }));
+        }
+        showToast("Photo uploaded to Cloudflare R2 CDN successfully!");
+      } else {
+        showToast(`Upload failed: ${data.error || "Unknown error"}`);
+      }
+    } catch (e: any) {
+      showToast(`Upload error: ${e.message}`);
+    } finally {
+      if (type === "kitchen") setIsUploadingBanner(false);
+      else setIsUploadingDishImg(false);
+    }
+  };
+
+  // Submit New Kitchen to Supabase
+  const handleCreateKitchen = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKitchen.name) {
+      showToast("Please enter kitchen name");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/restaurants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newKitchen),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`🎉 ${newKitchen.name} onboarded to Ambikapur network!`);
+        setIsAddKitchenOpen(false);
+        setNewKitchen({
+          name: "",
+          cuisine: "North Indian, Mughlai, Biryani",
+          area: "Gandhi Chowk",
+          address: "",
+          phone: "+91 ",
+          deliveryTime: "25-30 min",
+          commissionPercent: 20,
+          bannerUrl: "",
+        });
+        fetchRestaurants();
+      } else {
+        showToast(`Failed: ${data.error}`);
+      }
+    } catch (e: any) {
+      showToast(`Error: ${e.message}`);
+    }
+  };
+
+  // Submit New Dish to Supabase
+  const handleCreateDish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDish.name || !newDish.price) {
+      showToast("Please enter dish name and price");
+      return;
+    }
+
+    const restId = newDish.restaurantId || restaurants[0]?.id || "11111111-1111-1111-1111-111111111111";
+
+    try {
+      const res = await fetch("/api/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newDish, restaurantId: restId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`🍲 Dish ${newDish.name} added to menu & saved to Cloudflare!`);
+        setIsAddDishOpen(false);
+        setNewDish({
+          restaurantId: "",
+          name: "",
+          category: "Main Course",
+          price: "",
+          originalPrice: "",
+          isVeg: true,
+          isBestseller: false,
+          description: "",
+          imageUrl: "",
+        });
+        fetchMenuItems();
+      } else {
+        showToast(`Failed: ${data.error}`);
+      }
+    } catch (e: any) {
+      showToast(`Error: ${e.message}`);
+    }
+  };
 
   const assignRiderToOrder = async (orderId: string, orderNumber: string, riderName: string) => {
     try {
@@ -115,35 +286,38 @@ export default function AdminDashboard() {
   };
 
   const dispatchOrder = async (id: string, orderNumber: string) => {
-    // Default quick dispatch to first available online rider
     const onlineRider = riders.find((r) => r.isOnline)?.name || "Ramesh Kumar";
     await assignRiderToOrder(id, orderNumber, onlineRider);
   };
 
-  const toggleRestaurantStatus = (id: number) => {
-    setRestaurants((prev) =>
-      prev.map((r) => {
-        if (r.id === id) {
-          const newStatus = r.status === "Open" ? "Closed" : "Open";
-          showToast(`${r.name} status switched to ${newStatus}`);
-          return { ...r, status: newStatus };
-        }
-        return r;
-      })
-    );
+  const toggleRestaurantStatus = async (id: string, currentIsOpen: boolean) => {
+    try {
+      const newStatus = !currentIsOpen;
+      await fetch("/api/restaurants", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_open: newStatus }),
+      });
+      showToast(`Store status updated to ${newStatus ? "Open" : "Closed"}`);
+      fetchRestaurants();
+    } catch (e) {
+      showToast("Error updating store status");
+    }
   };
 
-  const toggleRestaurantBlock = (id: number) => {
-    setRestaurants((prev) =>
-      prev.map((r) => {
-        if (r.id === id) {
-          const newBlocked = !r.isBlocked;
-          showToast(newBlocked ? `${r.name} has been BLOCKED from accepting orders` : `${r.name} unblocked successfully`);
-          return { ...r, isBlocked: newBlocked };
-        }
-        return r;
-      })
-    );
+  const toggleRestaurantBlock = async (id: string, currentBlocked: boolean) => {
+    try {
+      const newBlocked = !currentBlocked;
+      await fetch("/api/restaurants", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_blocked: newBlocked }),
+      });
+      showToast(newBlocked ? "Store blocked from accepting orders" : "Store unblocked");
+      fetchRestaurants();
+    } catch (e) {
+      showToast("Error toggling store block");
+    }
   };
 
   const collectRiderCash = (riderId: number, name: string, currentHeld: number) => {
@@ -621,88 +795,140 @@ export default function AdminDashboard() {
           {/* TAB 3: RESTAURANTS MANAGEMENT */}
           {activeTab === "restaurants" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-black text-white tracking-tight">Partner Restaurants (Ambikapur)</h2>
-                  <p className="text-xs text-slate-400">Toggle store availability, modify commissions and block bad actors.</p>
+                  <p className="text-xs text-slate-400">
+                    Live database synced with Supabase & Cloudflare R2 CDN. ({restaurants.length} kitchens active).
+                  </p>
                 </div>
-                <button
-                  onClick={() => showToast("Restaurant onboarding form opened")}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow"
-                >
-                  + Add New Kitchen
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsAddDishOpen(true)}
+                    className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition flex items-center gap-1.5 border border-slate-700"
+                  >
+                    <Utensils className="w-3.5 h-3.5 text-orange-400" />
+                    <span>+ Add Dish</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddKitchenOpen(true)}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Add New Kitchen</span>
+                  </button>
+                </div>
               </div>
 
+              {isLoadingRest && (
+                <div className="text-center py-12 text-slate-500 text-xs">
+                  Loading live restaurants from Supabase...
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {restaurants.map((rest) => (
-                  <div key={rest.id} className="bg-slate-950 p-6 rounded-3xl border border-slate-800 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-black text-base text-white">{rest.name}</h3>
-                          {rest.isBlocked && (
-                            <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-black px-2 py-0.5 rounded-md">
-                              BLOCKED
-                            </span>
-                          )}
+                {restaurants.map((rest) => {
+                  const restDishes = menuItems.filter((m) => m.restaurant_id === rest.id);
+                  return (
+                    <div key={rest.id} className="bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden space-y-4">
+                      {/* Restaurant Banner Photo from Cloudflare R2 */}
+                      <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
+                        <img
+                          src={rest.banner_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg"}
+                          alt={rest.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                        <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-orange-600/90 text-white px-2.5 py-0.5 rounded-full backdrop-blur-xs">
+                            {rest.delivery_time_text || "25-30 min"}
+                          </span>
+                          <span className="text-xs font-black text-amber-300 bg-slate-950/80 px-2 py-0.5 rounded-md border border-amber-400/30">
+                            ★ {rest.rating || 4.5}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">{rest.area} • Phone: {rest.phone}</p>
                       </div>
 
-                      <button
-                        onClick={() => toggleRestaurantStatus(rest.id)}
-                        className="flex items-center gap-1.5 transition"
-                      >
-                        {rest.status === "Open" ? (
-                          <ToggleRight className="w-8 h-8 text-emerald-400" />
-                        ) : (
-                          <ToggleLeft className="w-8 h-8 text-slate-600" />
-                        )}
-                        <span className={`text-xs font-bold ${rest.status === "Open" ? "text-emerald-400" : "text-slate-500"}`}>
-                          {rest.status}
-                        </span>
-                      </button>
+                      <div className="px-5 pb-5 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-black text-base text-white">{rest.name}</h3>
+                              {rest.is_blocked && (
+                                <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-black px-2 py-0.5 rounded-md">
+                                  BLOCKED
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">{rest.area} • Phone: {rest.phone}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">{rest.cuisine}</p>
+                          </div>
+
+                          <button
+                            onClick={() => toggleRestaurantStatus(rest.id, rest.is_open)}
+                            className="flex items-center gap-1.5 transition"
+                          >
+                            {rest.is_open ? (
+                              <ToggleRight className="w-8 h-8 text-emerald-400" />
+                            ) : (
+                              <ToggleLeft className="w-8 h-8 text-slate-600" />
+                            )}
+                            <span className={`text-xs font-bold ${rest.is_open ? "text-emerald-400" : "text-slate-500"}`}>
+                              {rest.is_open ? "Open" : "Closed"}
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800 text-center text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase block font-bold">Commission</span>
+                            <span className="font-black text-orange-400">{rest.commission_percent || 20}%</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase block font-bold">Menu Items</span>
+                            <span className="font-black text-white">{restDishes.length} Dishes</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase block font-bold">Payout Mode</span>
+                            <span className="font-black text-emerald-400">Weekly UPI</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <Link
+                            href={`/restaurant/${rest.slug || "the-royal-kitchen"}`}
+                            className="text-xs font-bold text-orange-400 hover:underline flex items-center gap-1"
+                          >
+                            <span>View Live Menu</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+
+                          <div className="space-x-2">
+                            <button
+                              onClick={() => {
+                                setNewDish((prev) => ({ ...prev, restaurantId: rest.id }));
+                                setIsAddDishOpen(true);
+                              }}
+                              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 transition"
+                            >
+                              + Add Item
+                            </button>
+                            <button
+                              onClick={() => toggleRestaurantBlock(rest.id, rest.is_blocked)}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition ${
+                                rest.is_blocked
+                                  ? "bg-emerald-600 text-white border-emerald-500"
+                                  : "bg-slate-900 text-rose-400 border-rose-500/30 hover:bg-rose-950/40"
+                              }`}
+                            >
+                              {rest.is_blocked ? "Unblock" : "Block Store"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800 text-center text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Commission</span>
-                        <span className="font-black text-orange-400">{rest.commission}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Today Orders</span>
-                        <span className="font-black text-white">{rest.ordersToday}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Payout Mode</span>
-                        <span className="font-black text-emerald-400">Weekly UPI</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <Link
-                        href={`/restaurant/rest-${rest.id}`}
-                        className="text-xs font-bold text-orange-400 hover:underline flex items-center gap-1"
-                      >
-                        <span>View Live Menu</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
-
-                      <div className="space-x-2">
-                        <button
-                          onClick={() => toggleRestaurantBlock(rest.id)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition ${rest.isBlocked
-                              ? "bg-emerald-600 text-white border-emerald-500"
-                              : "bg-slate-900 text-rose-400 border-rose-500/30 hover:bg-rose-950/40"
-                            }`}
-                        >
-                          {rest.isBlocked ? "Unblock" : "Block Store"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -844,6 +1070,330 @@ export default function AdminDashboard() {
 
         </main>
       </div>
+
+      {/* MODAL 1: ADD NEW KITCHEN / RESTAURANT */}
+      {isAddKitchenOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-lg font-black text-white">Onboard New Restaurant / Kitchen</h3>
+                <p className="text-xs text-slate-400">Add food outlet to Ambikapur network & Cloudflare R2 CDN</p>
+              </div>
+              <button
+                onClick={() => setIsAddKitchenOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateKitchen} className="space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Restaurant / Cafe Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Royal Chai & Cafe"
+                  value={newKitchen.name}
+                  onChange={(e) => setNewKitchen({ ...newKitchen, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Cuisines Offered</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Fast Food, Coffee, Rolls"
+                    value={newKitchen.cuisine}
+                    onChange={(e) => setNewKitchen({ ...newKitchen, cuisine: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Ambikapur Area</label>
+                  <select
+                    value={newKitchen.area}
+                    onChange={(e) => setNewKitchen({ ...newKitchen, area: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  >
+                    <option value="Gandhi Chowk">Gandhi Chowk</option>
+                    <option value="Ghadi Chowk">Ghadi Chowk</option>
+                    <option value="Ring Road East">Ring Road East</option>
+                    <option value="Hospital Road">Hospital Road</option>
+                    <option value="Kedarpur">Kedarpur</option>
+                    <option value="Banaras Road">Banaras Road</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="+91 98261 00000"
+                    value={newKitchen.phone}
+                    onChange={(e) => setNewKitchen({ ...newKitchen, phone: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Delivery Time (approx)</label>
+                  <input
+                    type="text"
+                    placeholder="20-25 min"
+                    value={newKitchen.deliveryTime}
+                    onChange={(e) => setNewKitchen({ ...newKitchen, deliveryTime: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* Banner Upload to Cloudflare R2 */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-300 block">
+                  Restaurant Banner Photo (Uploads to Cloudflare R2)
+                </label>
+                <div className="border-2 border-dashed border-slate-800 rounded-2xl p-4 text-center bg-slate-950/60 hover:border-orange-500/50 transition">
+                  {newKitchen.bannerUrl ? (
+                    <div className="space-y-2">
+                      <img
+                        src={newKitchen.bannerUrl}
+                        alt="Preview"
+                        className="w-full h-32 object-cover rounded-xl"
+                      />
+                      <span className="text-[10px] text-emerald-400 font-bold block">
+                        ✅ Uploaded to Cloudflare R2!
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-8 h-8 text-slate-500 mx-auto" />
+                      <div className="text-slate-400">
+                        {isUploadingBanner ? (
+                          <span className="text-orange-400 font-bold animate-pulse">Uploading to Cloudflare R2...</span>
+                        ) : (
+                          <span>Click to select image file from computer</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingBanner}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleUploadImage(e.target.files[0], "kitchen");
+                      }
+                    }}
+                    className="mt-2 text-[11px] text-slate-400 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddKitchenOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploadingBanner}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-black px-5 py-2.5 rounded-xl transition shadow flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Onboard to Ambikapur Network</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ADD NEW DISH / MENU ITEM */}
+      {isAddDishOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-lg font-black text-white">Add Food Dish to Menu</h3>
+                <p className="text-xs text-slate-400">Photo will upload to Cloudflare R2 and save to Supabase</p>
+              </div>
+              <button
+                onClick={() => setIsAddDishOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDish} className="space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Select Restaurant *</label>
+                <select
+                  value={newDish.restaurantId}
+                  onChange={(e) => setNewDish({ ...newDish, restaurantId: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                >
+                  {restaurants.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.area})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Dish Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Butter Paneer Masala"
+                  value={newDish.name}
+                  onChange={(e) => setNewDish({ ...newDish, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Price (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="180"
+                    value={newDish.price}
+                    onChange={(e) => setNewDish({ ...newDish, price: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Original (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="220"
+                    value={newDish.originalPrice}
+                    onChange={(e) => setNewDish({ ...newDish, originalPrice: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">Category</label>
+                  <input
+                    type="text"
+                    placeholder="Main Course"
+                    value={newDish.category}
+                    onChange={(e) => setNewDish({ ...newDish, category: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 py-1">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={newDish.isVeg}
+                    onChange={(e) => setNewDish({ ...newDish, isVeg: e.target.checked })}
+                    className="w-4 h-4 text-emerald-500 rounded"
+                  />
+                  <span>Pure Vegetarian (Veg)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={newDish.isBestseller}
+                    onChange={(e) => setNewDish({ ...newDish, isBestseller: e.target.checked })}
+                    className="w-4 h-4 text-orange-500 rounded"
+                  />
+                  <span>Mark Bestseller</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Description / Recipe</label>
+                <textarea
+                  rows={2}
+                  placeholder="Delicious cottage cheese cooked in creamy tomato butter gravy..."
+                  value={newDish.description}
+                  onChange={(e) => setNewDish({ ...newDish, description: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                />
+              </div>
+
+              {/* Dish Photo Upload to Cloudflare R2 */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-300 block">
+                  Food Photo (Uploads to Cloudflare R2)
+                </label>
+                <div className="border-2 border-dashed border-slate-800 rounded-2xl p-4 text-center bg-slate-950/60 hover:border-orange-500/50 transition">
+                  {newDish.imageUrl ? (
+                    <div className="space-y-2">
+                      <img
+                        src={newDish.imageUrl}
+                        alt="Dish Preview"
+                        className="w-24 h-24 object-cover rounded-xl mx-auto"
+                      />
+                      <span className="text-[10px] text-emerald-400 font-bold block">
+                        ✅ Uploaded to Cloudflare R2!
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <ImageIcon className="w-8 h-8 text-slate-500 mx-auto" />
+                      <div className="text-slate-400">
+                        {isUploadingDishImg ? (
+                          <span className="text-orange-400 font-bold animate-pulse">Uploading to Cloudflare R2...</span>
+                        ) : (
+                          <span>Click to select dish photo from computer</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingDishImg}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleUploadImage(e.target.files[0], "dish");
+                      }
+                    }}
+                    className="mt-2 text-[11px] text-slate-400 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddDishOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploadingDishImg}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-black px-5 py-2.5 rounded-xl transition shadow flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Dish to Menu</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

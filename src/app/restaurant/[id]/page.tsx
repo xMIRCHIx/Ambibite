@@ -44,7 +44,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
     deliveryTime: "25-30 min",
     costForTwo: "₹450 for two",
     discount: "20% OFF UPTO ₹100 • Use AMBIKA20",
-    bannerUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200&auto=format&fit=crop",
+    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-1.jpg",
     menu: [
       {
         id: "1",
@@ -57,7 +57,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.8,
         votes: 420,
         description: "Wood-fired slow dum cooked fragrant basmati rice layered with succulent farm fresh chicken, hard boiled egg, saffron & pure ghee.",
-        imageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
       },
       {
         id: "2",
@@ -69,7 +69,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.6,
         votes: 180,
         description: "Charcoal roasted spiced paneer cubes stuffed in flaky butter paratha with tangy pudina chutney.",
-        imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/2.jpg",
       },
       {
         id: "3",
@@ -81,7 +81,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.7,
         votes: 215,
         description: "Tender bone-in chicken marinated 12 hours in Kashmiri spices, clay-oven roasted to perfection.",
-        imageUrl: "https://images.unsplash.com/photo-1598514982205-f36b96d1e8d4?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/3.jpg",
       },
       {
         id: "4",
@@ -93,7 +93,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.5,
         votes: 190,
         description: "Paneer Butter Masala, Dal Tadka, Seasonal Veg, 4 Butter Tawa Rotis, Jeera Rice, Salad, Pickle & Gulab Jamun.",
-        imageUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/4.jpg",
       },
       {
         id: "9",
@@ -104,7 +104,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.4,
         votes: 155,
         description: "Freshly made crispy aloo patty layered with sweetened curd, tamarind chutney and sev.",
-        imageUrl: "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/9.jpg",
       },
       {
         id: "10",
@@ -115,7 +115,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.9,
         votes: 210,
         description: "Rich blended mango pulp with genuine Ambikapur kulfi rabdi and crushed dry fruits.",
-        imageUrl: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/10.jpg",
       },
     ],
   },
@@ -128,7 +128,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
     deliveryTime: "20-25 min",
     costForTwo: "₹300 for two",
     discount: "FLAT ₹50 OFF on orders above ₹249",
-    bannerUrl: "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1200&auto=format&fit=crop",
+    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-2.jpg",
     menu: [
       {
         id: "5",
@@ -140,7 +140,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.6,
         votes: 130,
         description: "Crispy herb patty loaded with molten cheddar cheese, pickled jalapeños and secret house dressing.",
-        imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/5.jpg",
       },
       {
         id: "6",
@@ -151,7 +151,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.8,
         votes: 95,
         description: "Golden fried juicy chicken wings tossed vigorously in fiery African peri-peri spice dust.",
-        imageUrl: "https://images.unsplash.com/photo-1527477378408-1bc097a87113?q=80&w=600&auto=format&fit=crop",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/6.jpg",
       },
     ],
   },
@@ -160,11 +160,74 @@ const RESTAURANT_DATA: { [key: string]: any } = {
 export default function RestaurantDetailPage() {
   const params = useParams();
   const restId = (params?.id as string) || "rest-1";
-  const restaurant = RESTAURANT_DATA[restId] || RESTAURANT_DATA["rest-1"];
 
+  const [restaurant, setRestaurant] = useState<any>(
+    RESTAURANT_DATA[restId] || RESTAURANT_DATA["rest-1"]
+  );
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState<{ [id: string]: number }>({});
   const [isLiked, setIsLiked] = useState(false);
+
+  // Dynamic fetch from Supabase
+  useEffect(() => {
+    async function loadDynamicRestaurant() {
+      try {
+        const [resRes, menuRes] = await Promise.all([
+          fetch("/api/restaurants"),
+          fetch(`/api/menu?restaurantId=${restId}`),
+        ]);
+        const resData = await resRes.json();
+        const menuData = await menuRes.json();
+
+        if (resData.success && resData.restaurants?.length > 0) {
+          const matched = resData.restaurants.find(
+            (r: any) =>
+              r.id === restId ||
+              r.name.toLowerCase().replace(/\s+/g, "-") === restId.toLowerCase()
+          );
+
+          if (matched) {
+            let fetchedMenu: MenuItem[] = [];
+            if (menuData.success && menuData.items?.length > 0) {
+              fetchedMenu = menuData.items.map((m: any) => ({
+                id: m.id,
+                name: m.name,
+                category: m.category || "Main",
+                price: Number(m.price),
+                originalPrice: m.original_price ? Number(m.original_price) : undefined,
+                isVeg: Boolean(m.is_veg),
+                isBestseller: Boolean(m.is_bestseller),
+                rating: Number(m.rating) || 4.7,
+                votes: 120,
+                description: m.description || "",
+                imageUrl: m.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+              }));
+            } else if (RESTAURANT_DATA[restId]?.menu) {
+              fetchedMenu = RESTAURANT_DATA[restId].menu;
+            } else {
+              fetchedMenu = RESTAURANT_DATA["rest-1"].menu;
+            }
+
+            setRestaurant({
+              name: matched.name,
+              cuisine: matched.cuisine_types?.join(", ") || "Multi-Cuisine, Fresh Ambikapur Food",
+              area: matched.address || "Ambikapur",
+              rating: Number(matched.rating) || 4.8,
+              reviews: 500,
+              deliveryTime: "25-30 min",
+              costForTwo: "₹350 for two",
+              discount: "20% OFF UPTO ₹100 • Use AMBIKA20",
+              bannerUrl: matched.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-1.jpg",
+              menu: fetchedMenu,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Using fallback restaurant data:", err);
+      }
+    }
+    loadDynamicRestaurant();
+  }, [restId]);
 
   useEffect(() => {
     try {
