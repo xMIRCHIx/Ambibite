@@ -12,6 +12,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("restaurants")
       .select("*")
+      .neq("slug", "system-categories")
       .order("created_at", { ascending: true });
 
     if (error) {

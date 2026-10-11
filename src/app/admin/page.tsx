@@ -53,7 +53,7 @@ export interface LiveOrderData {
 }
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "restaurants" | "riders" | "payouts">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "restaurants" | "categories" | "riders" | "payouts">("dashboard");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [liveOrders, setLiveOrders] = useState<LiveOrderData[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -101,6 +101,15 @@ export default function AdminDashboard() {
   });
   const [isUploadingDishImg, setIsUploadingDishImg] = useState(false);
 
+  // State: Food Categories (Home "What's on your mind?")
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isSavingCategories, setIsSavingCategories] = useState(false);
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
+  const [catFormName, setCatFormName] = useState("");
+  const [catFormImg, setCatFormImg] = useState("");
+  const [isUploadingCatImg, setIsUploadingCatImg] = useState(false);
+
   // State: Riders
   const [riders, setRiders] = useState([
     { id: 1, name: "Ramesh Kumar", phone: "+91 98261 11223", vehicle: "Hero Splendor (CG 15)", status: "Available", cashHeld: 420, completedToday: 11, isOnline: true },
@@ -108,6 +117,81 @@ export default function AdminDashboard() {
     { id: 3, name: "Ajay Patel", phone: "+91 99814 55667", vehicle: "Bajaj Pulsar (CG 15)", status: "Available", cashHeld: 1240, completedToday: 14, isOnline: true },
     { id: 4, name: "Deepak Sahu", phone: "+91 91312 88990", vehicle: "TVS Jupiter (CG 15)", status: "Offline", cashHeld: 0, completedToday: 0, isOnline: false },
   ]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      }
+    } catch (e) {
+      console.warn("Error fetching categories:", e);
+    }
+  };
+
+  const handleUploadCategoryImg = async (file: File) => {
+    setIsUploadingCatImg(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setCatFormImg(data.url);
+        showToast("Category image uploaded to Cloudflare CDN!");
+      } else {
+        showToast("Upload failed");
+      }
+    } catch {
+      showToast("Failed to upload image");
+    } finally {
+      setIsUploadingCatImg(false);
+    }
+  };
+
+  const handleSaveCategoriesList = async (newList: any[]) => {
+    setIsSavingCategories(true);
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: newList }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCategories(newList);
+        showToast("Category changes saved & live on Customer Home!");
+      } else {
+        showToast("Failed to save categories");
+      }
+    } catch {
+      showToast("Error updating categories");
+    } finally {
+      setIsSavingCategories(false);
+    }
+  };
+
+  const handleOpenAddCategory = () => {
+    setEditingCatIdx(null);
+    setCatFormName("");
+    setCatFormImg("");
+    setIsCatModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: any, index: number) => {
+    setEditingCatIdx(index);
+    setCatFormName(cat.name);
+    setCatFormImg(cat.image);
+    setIsCatModalOpen(true);
+  };
+
+  const handleDeleteCategory = async (index: number) => {
+    const targetName = categories[index]?.name || "this category";
+    if (!confirm(`Are you sure you want to delete "${targetName}" from Home categories?`)) return;
+    const updated = categories.filter((_, idx) => idx !== index);
+    await handleSaveCategoriesList(updated);
+  };
 
   const fetchRestaurants = async () => {
     setIsLoadingRest(true);
@@ -152,6 +236,7 @@ export default function AdminDashboard() {
     fetchOrders();
     fetchRestaurants();
     fetchMenuItems();
+    fetchCategories();
     const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -393,6 +478,7 @@ export default function AdminDashboard() {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Live Orders", icon: ShoppingBag, badge: `${liveOrdersCount} Live` },
     { id: "restaurants", label: "Restaurants", icon: Store, count: `${restaurants.length}` },
+    { id: "categories", label: "Food Categories", icon: Utensils, count: `${categories.length}` },
     { id: "riders", label: "Rider Fleet", icon: Bike, count: `${riders.filter((r) => r.isOnline).length} Online` },
     { id: "payouts", label: "Weekly Payouts", icon: Banknote },
   ];
@@ -1056,6 +1142,95 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* TAB: FOOD CATEGORIES & CRAVINGS */}
+          {activeTab === "categories" && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                    <Utensils className="w-6 h-6 text-orange-500" />
+                    <span>Food Categories & Cravings Management</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Manage the "What's on your mind?" circular category icons on Customer Homepage. Upload photos to Cloudflare R2 CDN and edit names.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      if (confirm("Reset categories back to standard Ambikapur defaults?")) {
+                        fetch("/api/categories")
+                          .then((r) => r.json())
+                          .then((d) => {
+                            if (d.categories) handleSaveCategoriesList(d.categories);
+                          });
+                      }
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-700 transition"
+                  >
+                    Refresh List
+                  </button>
+                  <button
+                    onClick={handleOpenAddCategory}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition shadow flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add New Category</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Categories Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {categories.map((cat, idx) => (
+                  <div
+                    key={cat.id || cat.name + idx}
+                    className="bg-slate-950 p-5 rounded-3xl border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between group shadow-sm"
+                  >
+                    <div className="flex flex-col items-center text-center space-y-3">
+                      {/* Circle Preview matching Home Screen */}
+                      <div className="w-24 h-24 rounded-full overflow-hidden p-1 ring-2 ring-orange-500/40 group-hover:ring-orange-500 transition shadow-lg relative bg-slate-900">
+                        <img
+                          src={cat.image}
+                          alt={cat.name}
+                          className="w-full h-full object-cover rounded-full group-hover:scale-105 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-black text-white">{cat.name}</h4>
+                        <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider block mt-0.5">
+                          Position #{idx + 1}
+                        </span>
+                      </div>
+
+                      <p className="text-[10px] text-slate-500 truncate max-w-full font-mono bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800/80">
+                        {cat.image}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-5 pt-4 border-t border-slate-800/80">
+                      <button
+                        onClick={() => handleOpenEditCategory(cat, idx)}
+                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 px-3 rounded-xl border border-slate-800 transition"
+                      >
+                        Edit / Photo
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(idx)}
+                        className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold py-2 px-3 rounded-xl border border-rose-500/20 transition"
+                        title="Delete category"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* TAB 5: WEEKLY PAYOUTS (BLUEPRINT COMPLIANT) */}
           {activeTab === "payouts" && (
             <div className="space-y-6 animate-in fade-in duration-300">
@@ -1459,6 +1634,145 @@ export default function AdminDashboard() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Dish to Menu</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: ADD / EDIT CATEGORY */}
+      {isCatModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  {editingCatIdx !== null ? "Edit Food Category" : "Add New Food Category"}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Visible on Customer Homepage "What's on your mind?"
+                </p>
+              </div>
+              <button
+                onClick={() => setIsCatModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!catFormName.trim()) {
+                  showToast("Please enter a category name");
+                  return;
+                }
+                const finalImg =
+                  catFormImg.trim() ||
+                  "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg";
+                let updated: any[];
+                if (editingCatIdx !== null && editingCatIdx >= 0) {
+                  updated = [...categories];
+                  updated[editingCatIdx] = {
+                    ...updated[editingCatIdx],
+                    name: catFormName.trim(),
+                    image: finalImg,
+                  };
+                } else {
+                  updated = [
+                    ...categories,
+                    {
+                      id: `cat-${Date.now()}`,
+                      name: catFormName.trim(),
+                      image: finalImg,
+                    },
+                  ];
+                }
+                await handleSaveCategoriesList(updated);
+                setIsCatModalOpen(false);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Pizzas, Rolls & Wraps, Momos, Pasta"
+                  value={catFormName}
+                  onChange={(e) => setCatFormName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                  Category Image (Circular Icon)
+                </label>
+
+                {/* Image Preview */}
+                <div className="flex items-center gap-4 mb-3 p-3 bg-slate-950 rounded-2xl border border-slate-800">
+                  <div className="w-16 h-16 rounded-full overflow-hidden p-1 ring-2 ring-orange-500 shrink-0 bg-slate-900">
+                    <img
+                      src={
+                        catFormImg ||
+                        "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg"
+                      }
+                      alt="Category Preview"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-slate-400 block font-semibold mb-1">
+                      Upload from computer to Cloudflare R2 CDN:
+                    </span>
+                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl border border-slate-700 inline-flex items-center gap-1.5 transition">
+                      <Upload className="w-3.5 h-3.5 text-orange-400" />
+                      <span>{isUploadingCatImg ? "Uploading to CDN..." : "Choose Image File"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadCategoryImg(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <label className="text-[10px] text-slate-400 block mb-1">
+                  Or Paste Direct Image CDN / Unsplash URL:
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={catFormImg}
+                  onChange={(e) => setCatFormImg(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500 text-[11px]"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCatModalOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCategories || isUploadingCatImg}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-black px-5 py-2.5 rounded-xl transition shadow flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{isSavingCategories ? "Saving..." : "Save Category"}</span>
                 </button>
               </div>
             </form>

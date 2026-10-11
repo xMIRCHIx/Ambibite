@@ -113,12 +113,12 @@ const RESTAURANTS: Restaurant[] = [
   },
 ];
 
-const DISH_CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { name: "Biryani", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg" },
-  { name: "Rolls & Wraps", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/paneer_tikka_butter_roll.jpg" },
+  { name: "Rolls & Wraps", image: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=500&auto=format&fit=crop&q=80" },
   { name: "Burgers", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg" },
   { name: "Thali Meals", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/ambikapur_royal_veg_thali.jpg" },
-  { name: "Pizzas", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg" },
+  { name: "Pizzas", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1791717968463_694_image_SM654Q_1764739219.jpg" },
   { name: "Chaat & Street", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/crispy_aloo_tikki_chaat.jpg" },
   { name: "Dosas", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/mysore_masala_butter_dosa.jpg" },
   { name: "Shakes & Chai", image: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/fresh_mango_kulfi_thickshake.jpg" },
@@ -555,9 +555,19 @@ export default function CustomerHome() {
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>(RESTAURANTS);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(MENU_ITEMS);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
 
   // Live fetch from Supabase
   useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(data.categories);
+        }
+      })
+      .catch((err) => console.warn("Live categories fetch notice:", err));
+
     fetch("/api/restaurants")
       .then((r) => r.json())
       .then((data) => {
@@ -606,7 +616,25 @@ export default function CustomerHome() {
   }, []);
 
   const filteredItems = menuItems.filter((item) => {
-    if (selectedFilter !== "All" && item.category !== selectedFilter) return false;
+    if (selectedFilter !== "All") {
+      const filterLower = selectedFilter.toLowerCase();
+      const itemCatLower = (item.category || "").toLowerCase();
+      const itemNameLower = (item.name || "").toLowerCase();
+
+      const matches =
+        itemCatLower === filterLower ||
+        itemCatLower.includes(filterLower) ||
+        filterLower.includes(itemCatLower) ||
+        (filterLower.includes("pizza") && (itemNameLower.includes("pizza") || itemCatLower.includes("pizza"))) ||
+        (filterLower.includes("roll") && (itemNameLower.includes("roll") || itemNameLower.includes("wrap") || itemCatLower.includes("roll") || itemCatLower.includes("wrap"))) ||
+        (filterLower.includes("burger") && (itemNameLower.includes("burger") || itemNameLower.includes("wings") || itemCatLower.includes("burger"))) ||
+        (filterLower.includes("biryani") && (itemNameLower.includes("biryani") || itemCatLower.includes("biryani"))) ||
+        (filterLower.includes("dosa") && (itemNameLower.includes("dosa") || itemCatLower.includes("dosa"))) ||
+        (filterLower.includes("thali") && (itemNameLower.includes("thali") || itemCatLower.includes("thali"))) ||
+        (filterLower.includes("shake") && (itemNameLower.includes("shake") || itemNameLower.includes("chai")));
+
+      if (!matches) return false;
+    }
     if (isVegOnly && !item.isVeg) return false;
     if (
       searchQuery &&
@@ -807,7 +835,7 @@ export default function CustomerHome() {
           </div>
 
           <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-none scroll-smooth">
-            {DISH_CATEGORIES.map((cat) => {
+            {categories.map((cat) => {
               const isActive = selectedFilter === cat.name;
               return (
                 <button
@@ -922,7 +950,7 @@ export default function CustomerHome() {
 
             {/* Quick Filter Buttons */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {["All", "Biryani", "Rolls & Wraps", "Burgers", "Thali Meals", "Dosas", "Chaat & Street", "Shakes & Chai"].map((tab) => (
+              {["All", ...categories.map((c) => c.name)].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSelectedFilter(tab)}
