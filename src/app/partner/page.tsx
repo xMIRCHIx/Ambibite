@@ -107,7 +107,7 @@ export default function RestaurantPartnerHub() {
   const [dishPrice, setDishPrice] = useState("");
   const [dishCategory, setDishCategory] = useState("Main Course");
   const [dishIsVeg, setDishIsVeg] = useState(true);
-  const [dishImageUrl, setDishImageUrl] = useState("");
+  const [dishImages, setDishImages] = useState<string[]>([]);
 
   const fetchMenuItems = async () => {
     try {
@@ -138,17 +138,20 @@ export default function RestaurantPartnerHub() {
   }, []);
 
   const handleDishUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setDishUploading(true);
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      Array.from(files).forEach((file) => {
+        fd.append("files", file);
+      });
       fd.append("folder", "food");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.success && data.url) {
-        setDishImageUrl(data.url);
+      if (data.success && (data.urls || data.url)) {
+        const newUrls = data.urls || [data.url];
+        setDishImages((prev) => [...prev, ...newUrls]);
       } else {
         alert("Upload failed: " + (data.error || "Unknown"));
       }
@@ -157,6 +160,10 @@ export default function RestaurantPartnerHub() {
     } finally {
       setDishUploading(false);
     }
+  };
+
+  const removeDishImage = (idxToRemove: number) => {
+    setDishImages((prev) => prev.filter((_, idx) => idx !== idxToRemove));
   };
 
   const handleSaveDish = async (e: React.FormEvent) => {
@@ -174,7 +181,8 @@ export default function RestaurantPartnerHub() {
           price: Number(dishPrice),
           category: dishCategory,
           is_veg: dishIsVeg,
-          image_url: dishImageUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+          imageUrl: dishImages[0] || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+          images: dishImages,
           description: "Freshly prepared in Ambikapur kitchen.",
         }),
       });
@@ -183,7 +191,7 @@ export default function RestaurantPartnerHub() {
         setShowAddDish(false);
         setDishName("");
         setDishPrice("");
-        setDishImageUrl("");
+        setDishImages([]);
         fetchMenuItems();
       } else {
         alert("Failed to add dish: " + (data.error || "Unknown"));
@@ -659,45 +667,68 @@ export default function RestaurantPartnerHub() {
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  Food Photo (Uploads to Cloudflare R2)
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex-1 bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer transition">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Food Photos (Multiple Carousel Photos Supported)
+                  </label>
+                  <label className="w-full bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 rounded-xl p-3.5 flex flex-col items-center justify-center cursor-pointer transition">
                     {dishUploading ? (
                       <div className="flex items-center gap-2 text-xs text-orange-400 font-bold">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Uploading to Cloudflare R2...</span>
+                        <span>Uploading Photos to Cloudflare R2...</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
-                        <UploadCloud className="w-4 h-4 text-orange-400" />
-                        <span>Click to Select & Upload Photo</span>
+                      <div className="flex flex-col items-center gap-1 text-slate-300">
+                        <div className="flex items-center gap-2 text-xs font-bold text-orange-400">
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Click to Select Single or Multiple Photos</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">You can select multiple photos at once</span>
                       </div>
                     )}
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={handleDishUpload}
                       disabled={dishUploading}
                       className="hidden"
                     />
                   </label>
-                  {dishImageUrl && (
-                    <img
-                      src={dishImageUrl}
-                      alt="Uploaded food"
-                      className="w-14 h-14 rounded-xl object-cover border border-emerald-500 shadow"
-                    />
+
+                  {dishImages.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span className="font-bold text-white">
+                          Uploaded Photos ({dishImages.length})
+                        </span>
+                        <span className="text-emerald-400 font-semibold">Carousel Ready</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-1 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                        {dishImages.map((img, idx) => (
+                          <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-700 aspect-square">
+                            <img
+                              src={img}
+                              alt={`Dish ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeDishImage(idx)}
+                              className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow transition opacity-90 group-hover:opacity-100"
+                              title="Remove photo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <span className="absolute bottom-0.5 left-0.5 bg-black/70 text-[9px] text-white px-1 rounded font-bold">
+                              #{idx + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
-                {dishImageUrl && (
-                  <p className="text-[10px] text-emerald-400 font-bold mt-1 truncate">
-                    Cloudflare CDN: {dishImageUrl}
-                  </p>
-                )}
-              </div>
 
               <div className="flex gap-2 pt-2">
                 <button

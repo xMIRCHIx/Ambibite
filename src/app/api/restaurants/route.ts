@@ -35,6 +35,11 @@ export async function POST(req: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") + "-" + Math.floor(100 + Math.random() * 900);
 
+    let finalBannerUrl = body.bannerUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-1.jpg";
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      finalBannerUrl = body.images.length === 1 ? body.images[0] : JSON.stringify(body.images);
+    }
+
     const { data, error } = await supabase
       .from("restaurants")
       .insert({
@@ -48,7 +53,7 @@ export async function POST(req: Request) {
         commission_percent: body.commissionPercent || 20.0,
         delivery_time_text: body.deliveryTime || "25-30 min",
         rating: body.rating || 4.5,
-        banner_url: body.bannerUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg",
+        banner_url: finalBannerUrl,
       })
       .select();
 

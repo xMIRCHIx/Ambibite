@@ -24,6 +24,7 @@ import {
   Bike,
   Store,
   ChevronRight,
+  ChevronLeft,
   Heart,
 } from "lucide-react";
 
@@ -262,6 +263,181 @@ const MENU_ITEMS: MenuItem[] = [
     imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/fresh_mango_kulfi_thickshake.jpg",
   },
 ];
+
+function parseImages(imageUrl: string | undefined): string[] {
+  if (!imageUrl) return ["https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg"];
+  if (imageUrl.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(imageUrl);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+  }
+  return [imageUrl];
+}
+
+function FoodItemCard({
+  item,
+  qtyInCart,
+  onUpdateQty,
+}: {
+  item: MenuItem;
+  qtyInCart: number;
+  onUpdateQty: (delta: number) => void;
+}) {
+  const images = parseImages(item.imageUrl);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  return (
+    <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300 flex flex-col justify-between group">
+      <div>
+        {/* Image Carousel Container */}
+        <div className="relative w-full h-44 rounded-2xl overflow-hidden mb-3.5 bg-slate-100 shadow-inner group/carousel">
+          <Link href={`/product/${item.id}`} className="w-full h-full block">
+            <img
+              src={images[activeIdx] || images[0]}
+              alt={item.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+            />
+          </Link>
+
+          {/* Carousel Arrows if multiple images */}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+                }}
+                className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition shadow z-10 cursor-pointer"
+                title="Previous photo"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+                }}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition shadow z-10 cursor-pointer"
+                title="Next photo"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Dots */}
+              <div className="absolute bottom-2 inset-x-0 flex items-center justify-center gap-1 z-10 pointer-events-none">
+                {images.map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      idx === activeIdx ? "w-4 bg-orange-500 shadow" : "w-1.5 bg-white/70"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Veg / Non-veg marker */}
+          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md p-1.5 rounded-lg shadow-md pointer-events-none z-10">
+            <div
+              className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${
+                item.isVeg ? "border-emerald-600" : "border-rose-600"
+              }`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  item.isVeg ? "bg-emerald-600" : "bg-rose-600"
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Bestseller Badge */}
+          {item.isBestseller && (
+            <div className="absolute top-3 right-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 z-10 pointer-events-none">
+              <Sparkles className="w-2.5 h-2.5" />
+              <span>Bestseller</span>
+            </div>
+          )}
+
+          {/* Rating pill */}
+          <div className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 shadow z-10 pointer-events-none">
+            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+            <span>{item.rating}</span>
+            <span className="text-slate-300">({item.votes})</span>
+          </div>
+        </div>
+
+        {/* Restaurant Origin */}
+        <Link href={`/restaurant/${item.restaurantId}`} className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wider hover:underline block">
+          {item.restaurantName}
+        </Link>
+
+        {/* Item Name & Details */}
+        <Link href={`/product/${item.id}`}>
+          <h3 className="font-bold text-base text-slate-900 group-hover:text-orange-600 transition leading-snug mt-0.5">
+            {item.name}
+          </h3>
+        </Link>
+
+        <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
+          {item.description}
+        </p>
+      </div>
+
+      {/* Price & Cart Actions */}
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg font-black text-slate-900">₹{item.price}</span>
+            {item.originalPrice && (
+              <span className="text-xs text-slate-400 line-through font-semibold">
+                ₹{item.originalPrice}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-emerald-600 font-bold block">
+            Ambikapur Fresh
+          </span>
+        </div>
+
+        {qtyInCart > 0 ? (
+          <div className="flex items-center gap-2.5 bg-orange-50 border border-orange-300 px-2.5 py-1 rounded-xl shadow-xs">
+            <button
+              onClick={() => onUpdateQty(-1)}
+              className="w-6 h-6 rounded-lg bg-white text-orange-600 font-bold hover:bg-orange-100 flex items-center justify-center transition shadow-xs"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="font-extrabold text-orange-700 text-sm w-4 text-center">
+              {qtyInCart}
+            </span>
+            <button
+              onClick={() => onUpdateQty(1)}
+              className="w-6 h-6 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-700 flex items-center justify-center transition shadow-xs"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => onUpdateQty(1)}
+            className="bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-600 hover:text-white font-black text-xs px-5 py-2 rounded-xl transition shadow-xs active:scale-95 flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>ADD</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CustomerHome() {
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -760,115 +936,14 @@ export default function CustomerHome() {
 
           {/* Dishes Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item) => {
-              const qtyInCart = cart[item.id] || 0;
-              return (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300 flex flex-col justify-between group"
-                >
-                  <div>
-                    {/* Image with Badges */}
-                    <Link href={`/product/${item.id}`} className="relative w-full h-44 rounded-2xl overflow-hidden mb-3.5 bg-slate-100 shadow-inner block">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-
-                      {/* Veg / Non-veg marker */}
-                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md p-1.5 rounded-lg shadow-md">
-                        <div
-                          className={`w-3.5 h-3.5 border-2 flex items-center justify-center ${item.isVeg ? "border-emerald-600" : "border-rose-600"
-                            }`}
-                        >
-                          <div
-                            className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-emerald-600" : "bg-rose-600"
-                              }`}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Bestseller Badge */}
-                      {item.isBestseller && (
-                        <div className="absolute top-3 right-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>Bestseller</span>
-                        </div>
-                      )}
-
-                      {/* Rating pill */}
-                      <div className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 shadow">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        <span>{item.rating}</span>
-                        <span className="text-slate-300">({item.votes})</span>
-                      </div>
-                    </Link>
-
-                    {/* Restaurant Origin */}
-                    <Link href={`/restaurant/${item.restaurantId}`} className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wider hover:underline block">
-                      {item.restaurantName}
-                    </Link>
-
-                    {/* Item Name & Details */}
-                    <Link href={`/product/${item.id}`}>
-                      <h3 className="font-bold text-base text-slate-900 group-hover:text-orange-600 transition leading-snug mt-0.5">
-                        {item.name}
-                      </h3>
-                    </Link>
-
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-
-                  {/* Price & Cart Actions */}
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-lg font-black text-slate-900">₹{item.price}</span>
-                        {item.originalPrice && (
-                          <span className="text-xs text-slate-400 line-through font-semibold">
-                            ₹{item.originalPrice}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-emerald-600 font-bold block">
-                        Ambikapur Fresh
-                      </span>
-                    </div>
-
-                    {qtyInCart > 0 ? (
-                      <div className="flex items-center gap-2.5 bg-orange-50 border border-orange-300 px-2.5 py-1 rounded-xl shadow-xs">
-                        <button
-                          onClick={() => updateQuantity(item.id, -1)}
-                          className="w-6 h-6 rounded-lg bg-white text-orange-600 font-bold hover:bg-orange-100 flex items-center justify-center transition shadow-xs"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="font-extrabold text-orange-700 text-sm w-4 text-center">
-                          {qtyInCart}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.id, 1)}
-                          className="w-6 h-6 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-700 flex items-center justify-center transition shadow-xs"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-600 hover:text-white font-black text-xs px-5 py-2 rounded-xl transition shadow-xs active:scale-95 flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>ADD</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {filteredItems.map((item) => (
+              <FoodItemCard
+                key={item.id}
+                item={item}
+                qtyInCart={cart[item.id] || 0}
+                onUpdateQty={(delta) => updateQuantity(item.id, delta)}
+              />
+            ))}
           </div>
         </section>
 

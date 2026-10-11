@@ -44,6 +44,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Name and price are required" }, { status: 400 });
     }
 
+    let finalImageUrl = body.imageUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg";
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      finalImageUrl = body.images.length === 1 ? body.images[0] : JSON.stringify(body.images);
+    }
+
     const { data, error } = await supabase
       .from("menu_items")
       .insert({
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
         is_bestseller: body.isBestseller ?? false,
         in_stock: true,
         description: body.description || "",
-        image_url: body.imageUrl || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
+        image_url: finalImageUrl,
       })
       .select();
 

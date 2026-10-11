@@ -82,6 +82,7 @@ export default function AdminDashboard() {
     deliveryTime: "25-30 min",
     commissionPercent: 20,
     bannerUrl: "",
+    images: [] as string[],
   });
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
@@ -96,6 +97,7 @@ export default function AdminDashboard() {
     isBestseller: false,
     description: "",
     imageUrl: "",
+    images: [] as string[],
   });
   const [isUploadingDishImg, setIsUploadingDishImg] = useState(false);
 
@@ -154,14 +156,18 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Upload to Cloudflare R2
-  const handleUploadImage = async (file: File, type: "kitchen" | "dish") => {
+  // Upload to Cloudflare R2 (Single or Multiple Photos)
+  const handleUploadImages = async (files: FileList | File[], type: "kitchen" | "dish") => {
+    if (!files || files.length === 0) return;
     if (type === "kitchen") setIsUploadingBanner(true);
     else setIsUploadingDishImg(true);
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
+      });
+      formData.append("folder", type === "kitchen" ? "restaurants" : "food");
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -169,13 +175,22 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
 
-      if (data.success && data.url) {
+      if (data.success && (data.urls || data.url)) {
+        const uploaded = data.urls || [data.url];
         if (type === "kitchen") {
-          setNewKitchen((prev) => ({ ...prev, bannerUrl: data.url }));
+          setNewKitchen((prev) => ({
+            ...prev,
+            bannerUrl: prev.bannerUrl || uploaded[0],
+            images: [...prev.images, ...uploaded],
+          }));
         } else {
-          setNewDish((prev) => ({ ...prev, imageUrl: data.url }));
+          setNewDish((prev) => ({
+            ...prev,
+            imageUrl: prev.imageUrl || uploaded[0],
+            images: [...prev.images, ...uploaded],
+          }));
         }
-        showToast("Photo uploaded to Cloudflare R2 CDN successfully!");
+        showToast(`✅ ${uploaded.length} photo(s) uploaded to Cloudflare R2!`);
       } else {
         showToast(`Upload failed: ${data.error || "Unknown error"}`);
       }
@@ -185,6 +200,28 @@ export default function AdminDashboard() {
       if (type === "kitchen") setIsUploadingBanner(false);
       else setIsUploadingDishImg(false);
     }
+  };
+
+  const removeKitchenImage = (idxToRemove: number) => {
+    setNewKitchen((prev) => {
+      const nextImgs = prev.images.filter((_, idx) => idx !== idxToRemove);
+      return {
+        ...prev,
+        images: nextImgs,
+        bannerUrl: nextImgs[0] || "",
+      };
+    });
+  };
+
+  const removeDishImage = (idxToRemove: number) => {
+    setNewDish((prev) => {
+      const nextImgs = prev.images.filter((_, idx) => idx !== idxToRemove);
+      return {
+        ...prev,
+        images: nextImgs,
+        imageUrl: nextImgs[0] || "",
+      };
+    });
   };
 
   // Submit New Kitchen to Supabase
@@ -214,6 +251,7 @@ export default function AdminDashboard() {
           deliveryTime: "25-30 min",
           commissionPercent: 20,
           bannerUrl: "",
+          images: [],
         });
         fetchRestaurants();
       } else {
@@ -254,6 +292,7 @@ export default function AdminDashboard() {
           isBestseller: false,
           description: "",
           imageUrl: "",
+          images: [],
         });
         fetchMenuItems();
       } else {
@@ -1155,45 +1194,61 @@ export default function AdminDashboard() {
               {/* Banner Upload to Cloudflare R2 */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-300 block">
-                  Restaurant Banner Photo (Uploads to Cloudflare R2)
+                  Restaurant Photos (Upload Multiple for Banner Carousel)
                 </label>
                 <div className="border-2 border-dashed border-slate-800 rounded-2xl p-4 text-center bg-slate-950/60 hover:border-orange-500/50 transition">
-                  {newKitchen.bannerUrl ? (
-                    <div className="space-y-2">
-                      <img
-                        src={newKitchen.bannerUrl}
-                        alt="Preview"
-                        className="w-full h-32 object-cover rounded-xl"
-                      />
-                      <span className="text-[10px] text-emerald-400 font-bold block">
-                        ✅ Uploaded to Cloudflare R2!
-                      </span>
+                  <div className="space-y-2">
+                    <Upload className="w-7 h-7 text-orange-400 mx-auto" />
+                    <div className="text-slate-300 text-xs font-bold">
+                      {isUploadingBanner ? (
+                        <span className="text-orange-400 animate-pulse">Uploading Photos to Cloudflare R2...</span>
+                      ) : (
+                        <span>Click to select single or multiple photos</span>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-8 h-8 text-slate-500 mx-auto" />
-                      <div className="text-slate-400">
-                        {isUploadingBanner ? (
-                          <span className="text-orange-400 font-bold animate-pulse">Uploading to Cloudflare R2...</span>
-                        ) : (
-                          <span>Click to select image file from computer</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    <span className="text-[10px] text-slate-500 block">PNG, JPG or WebP (Zero Egress CDN)</span>
+                  </div>
 
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     disabled={isUploadingBanner}
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleUploadImage(e.target.files[0], "kitchen");
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleUploadImages(e.target.files, "kitchen");
                       }
                     }}
                     className="mt-2 text-[11px] text-slate-400 cursor-pointer"
                   />
                 </div>
+
+                {newKitchen.images.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-white">Uploaded Photos ({newKitchen.images.length})</span>
+                      <span className="text-emerald-400 font-semibold">Carousel Enabled</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 p-1.5 bg-slate-950 rounded-xl border border-slate-800 max-h-32 overflow-y-auto">
+                      {newKitchen.images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-800 aspect-video">
+                          <img src={img} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeKitchenImage(idx)}
+                            className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow transition opacity-90 group-hover:opacity-100"
+                            title="Remove photo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <span className="absolute bottom-0.5 left-0.5 bg-black/70 text-[9px] text-white px-1 rounded font-bold">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -1332,45 +1387,61 @@ export default function AdminDashboard() {
               {/* Dish Photo Upload to Cloudflare R2 */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-300 block">
-                  Food Photo (Uploads to Cloudflare R2)
+                  Food Photos (Upload Multiple for Food Carousel)
                 </label>
                 <div className="border-2 border-dashed border-slate-800 rounded-2xl p-4 text-center bg-slate-950/60 hover:border-orange-500/50 transition">
-                  {newDish.imageUrl ? (
-                    <div className="space-y-2">
-                      <img
-                        src={newDish.imageUrl}
-                        alt="Dish Preview"
-                        className="w-24 h-24 object-cover rounded-xl mx-auto"
-                      />
-                      <span className="text-[10px] text-emerald-400 font-bold block">
-                        ✅ Uploaded to Cloudflare R2!
-                      </span>
+                  <div className="space-y-2">
+                    <ImageIcon className="w-7 h-7 text-orange-400 mx-auto" />
+                    <div className="text-slate-300 text-xs font-bold">
+                      {isUploadingDishImg ? (
+                        <span className="text-orange-400 animate-pulse">Uploading Photos to Cloudflare R2...</span>
+                      ) : (
+                        <span>Click to select single or multiple dish photos</span>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <ImageIcon className="w-8 h-8 text-slate-500 mx-auto" />
-                      <div className="text-slate-400">
-                        {isUploadingDishImg ? (
-                          <span className="text-orange-400 font-bold animate-pulse">Uploading to Cloudflare R2...</span>
-                        ) : (
-                          <span>Click to select dish photo from computer</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    <span className="text-[10px] text-slate-500 block">PNG, JPG or WebP</span>
+                  </div>
 
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     disabled={isUploadingDishImg}
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleUploadImage(e.target.files[0], "dish");
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleUploadImages(e.target.files, "dish");
                       }
                     }}
                     className="mt-2 text-[11px] text-slate-400 cursor-pointer"
                   />
                 </div>
+
+                {newDish.images.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-white">Uploaded Photos ({newDish.images.length})</span>
+                      <span className="text-emerald-400 font-semibold">Carousel Enabled</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 p-1.5 bg-slate-950 rounded-xl border border-slate-800 max-h-32 overflow-y-auto">
+                      {newDish.images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-800 aspect-square">
+                          <img src={img} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeDishImage(idx)}
+                            className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow transition opacity-90 group-hover:opacity-100"
+                            title="Remove photo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <span className="absolute bottom-0.5 left-0.5 bg-black/70 text-[9px] text-white px-1 rounded font-bold">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">

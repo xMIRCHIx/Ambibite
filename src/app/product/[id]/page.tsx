@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ChevronLeft,
+  ChevronRight,
   Star,
   Clock,
   ShieldCheck,
@@ -141,11 +142,61 @@ const PRODUCTS_DATABASE: { [key: string]: Product } = {
   },
 };
 
+function parseImages(imageUrl: string | undefined): string[] {
+  if (!imageUrl) return ["https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg"];
+  if (imageUrl.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(imageUrl);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+  }
+  return [imageUrl];
+}
+
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = (params?.id as string) || "1";
-  const product = PRODUCTS_DATABASE[productId] || PRODUCTS_DATABASE["1"];
+
+  const [product, setProduct] = useState<Product>(
+    PRODUCTS_DATABASE[productId] || PRODUCTS_DATABASE["1"]
+  );
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  // Dynamic fetch
+  useEffect(() => {
+    fetch("/api/menu")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.menuItems?.length > 0) {
+          const found = data.menuItems.find((m: any) => m.id === productId);
+          if (found) {
+            setProduct({
+              id: found.id,
+              name: found.name,
+              restaurantId: found.restaurant_id || "rest-1",
+              restaurantName: found.restaurants?.name || "Ambikapur Kitchen",
+              category: found.category || "Main Course",
+              price: Number(found.price),
+              originalPrice: found.original_price ? Number(found.original_price) : Number(found.price) + 40,
+              isVeg: Boolean(found.is_veg),
+              rating: Number(found.rating) || 4.8,
+              reviewsCount: 150,
+              prepTime: "20-25 Mins",
+              calories: "550 kcal",
+              protein: "24g Protein",
+              description: found.description || "Prepared fresh in Ambikapur.",
+              chefNote: "Cooked to order with finest local ingredients.",
+              imageUrl: found.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+              ingredients: ["Fresh Spices", "Local Produce", "Pure Ghee & Herbs"],
+            });
+          }
+        }
+      })
+      .catch((e) => console.warn("Dynamic product fetch notice:", e));
+  }, [productId]);
+
+  const images = parseImages(product.imageUrl);
 
   const [quantity, setQuantity] = useState(1);
   const [spiceLevel, setSpiceLevel] = useState<"Medium" | "Spicy" | "Extra Spicy">("Spicy");
@@ -221,17 +272,39 @@ export default function ProductDetailPage() {
         {/* Product Showcase Card */}
         <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-md">
           
-          {/* Big Photo Banner */}
-          <div className="relative h-72 sm:h-96 w-full bg-slate-100 overflow-hidden">
+          {/* Big Photo Banner with Multi-Image Carousel */}
+          <div className="relative h-72 sm:h-96 w-full bg-slate-100 overflow-hidden group/banner">
             <img
-              src={product.imageUrl}
+              src={images[activeImageIdx] || images[0]}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-opacity duration-300"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+
+            {/* Carousel Arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition shadow-lg z-20 cursor-pointer"
+                  title="Previous image"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition shadow-lg z-20 cursor-pointer"
+                  title="Next image"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
 
             {/* Badges on Top */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
               <div
                 className={`p-2 rounded-xl backdrop-blur-md shadow-md bg-white/95 ${
                   product.isVeg ? "text-emerald-700" : "text-rose-700"
@@ -273,6 +346,28 @@ export default function ProductDetailPage() {
             </div>
 
           </div>
+
+          {/* Multi-Image Thumbnails Bar */}
+          {images.length > 1 && (
+            <div className="bg-slate-900 p-2.5 flex items-center gap-2 overflow-x-auto border-b border-slate-800">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0 pl-1">
+                Photos ({images.length}):
+              </span>
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImageIdx(idx)}
+                  className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition ${
+                    idx === activeImageIdx
+                      ? "border-orange-500 scale-105 shadow-md shadow-orange-500/20"
+                      : "border-slate-700 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Pricing & Description */}
           <div className="p-6 space-y-6">
