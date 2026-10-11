@@ -115,6 +115,11 @@ export default function RestaurantPartnerHub() {
   const [dishDescription, setDishDescription] = useState("");
   const [dishImages, setDishImages] = useState<string[]>([]);
 
+  // Custom Add-ons / Variants State (e.g. Extra Cheese, Half/Full size)
+  const [dishAddons, setDishAddons] = useState<{ name: string; price: number }[]>([]);
+  const [addonInputName, setAddonInputName] = useState("");
+  const [addonInputPrice, setAddonInputPrice] = useState("");
+
   // Kitchen Settings Form State
   const [isEditingKitchen, setIsEditingKitchen] = useState(false);
   const [editKitchenName, setEditKitchenName] = useState("");
@@ -331,8 +336,30 @@ export default function RestaurantPartnerHub() {
     setDishCategory(dish.category || "Main Course");
     setDishIsVeg(dish.isVeg);
     setDishIsBestseller(dish.isBestseller);
-    setDishDescription(dish.description || "");
+
+    // Extract customizations from description if available
+    let rawDesc = dish.description || "";
+    let extractedAddons: { name: string; price: number }[] = dish.addons || [];
+    if ((!extractedAddons || extractedAddons.length === 0) && rawDesc.includes("Customizations:")) {
+      const parts = rawDesc.split(/Customizations:\s*/i);
+      rawDesc = parts[0].trim();
+      const addonParts = parts[1]?.split(",") || [];
+      extractedAddons = addonParts
+        .map((p: string) => {
+          const match = p.match(/(.*?)\s*\(\+?₹?(\d+)\)/);
+          if (match) {
+            return { name: match[1].trim(), price: Number(match[2]) };
+          }
+          return { name: p.trim(), price: 0 };
+        })
+        .filter((a: any) => Boolean(a.name));
+    }
+
+    setDishDescription(rawDesc);
     setDishImages(dish.images || []);
+    setDishAddons(extractedAddons);
+    setAddonInputName("");
+    setAddonInputPrice("");
     setIsDishModalOpen(true);
   };
 
@@ -347,7 +374,22 @@ export default function RestaurantPartnerHub() {
     setDishIsBestseller(false);
     setDishDescription("");
     setDishImages([]);
+    setDishAddons([]);
+    setAddonInputName("");
+    setAddonInputPrice("");
     setIsDishModalOpen(true);
+  };
+
+  const handleAddCustomAddon = () => {
+    if (!addonInputName.trim()) return;
+    const priceNum = Number(addonInputPrice) || 0;
+    setDishAddons((prev) => [...prev, { name: addonInputName.trim(), price: priceNum }]);
+    setAddonInputName("");
+    setAddonInputPrice("");
+  };
+
+  const handleRemoveAddon = (idx: number) => {
+    setDishAddons((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Upload Dish Photos
@@ -389,16 +431,25 @@ export default function RestaurantPartnerHub() {
     }
 
     try {
+      let finalDescription = dishDescription.trim();
+      if (dishAddons.length > 0) {
+        const addonStr = dishAddons.map((a) => `${a.name} (+₹${a.price})`).join(", ");
+        finalDescription = finalDescription
+          ? `${finalDescription}\n\nCustomizations: ${addonStr}`
+          : `Customizations: ${addonStr}`;
+      }
+
       const payload: any = {
         name: dishName,
         price: Number(dishPrice),
         originalPrice: dishOriginalPrice ? Number(dishOriginalPrice) : null,
-        category: dishCategory,
+        category: dishCategory.trim() || "Main Course",
         isVeg: dishIsVeg,
         isBestseller: dishIsBestseller,
-        description: dishDescription || "Freshly prepared in Ambikapur kitchen.",
+        description: finalDescription || "Freshly prepared in Ambikapur kitchen.",
         imageUrl: dishImages[0] || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
         images: dishImages,
+        addons: dishAddons,
         restaurantId: activeKitchen.id,
       };
 
@@ -1166,9 +1217,14 @@ export default function RestaurantPartnerHub() {
 
               {/* Category Quick Presets */}
               <div>
-                <label className="font-bold text-slate-300 block mb-1">
-                  Food Category (Select or Type Custom) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-300 block">
+                    Food Category (Select or Type Custom) *
+                  </label>
+                  <span className="text-[10px] text-orange-400 font-semibold">
+                    Live Categorized Menu
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {CATEGORY_PRESETS.slice(1).map((cat) => (
                     <button
@@ -1177,22 +1233,36 @@ export default function RestaurantPartnerHub() {
                       onClick={() => setDishCategory(cat)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                         dishCategory === cat
-                          ? "bg-orange-600 text-white"
+                          ? "bg-orange-600 text-white shadow-xs"
                           : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
                       }`}
                     >
                       {cat}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setDishCategory("")}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border border-dashed ${
+                      !CATEGORY_PRESETS.slice(1).includes(dishCategory) && dishCategory.length > 0
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500"
+                        : "bg-slate-950 text-amber-400 border-amber-500/50 hover:bg-amber-500/10"
+                    }`}
+                  >
+                    ✨ + Type Custom Category
+                  </button>
                 </div>
                 <input
                   type="text"
                   required
-                  placeholder="Category Name"
+                  placeholder="e.g. Momos, Chinese, Cold Beverages, Pasta, Chaat..."
                   value={dishCategory}
                   onChange={(e) => setDishCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 text-xs"
                 />
+                <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                  💡 <strong>Custom Category:</strong> Yahan aap jo bhi custom naam likhenge (jaise <span className="text-orange-400">Momos</span>, <span className="text-orange-400">Chai</span>, <span className="text-orange-400">Pasta</span>), wo live menu aur customer page par automatically naya category filter pill ban jayega!
+                </p>
               </div>
 
               {/* Price & Veg Selector */}
@@ -1269,6 +1339,73 @@ export default function RestaurantPartnerHub() {
                   onChange={(e) => setDishDescription(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
                 />
+              </div>
+
+              {/* Custom Variants & Add-ons (e.g. Extra Cheese, Half/Full size) */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <span>✨ Custom Add-ons & Variants (Optional)</span>
+                  </label>
+                  <span className="text-[10px] text-orange-400 font-semibold">Zomato Style</span>
+                </div>
+                <p className="text-[10.5px] text-slate-400">
+                  Dish ke sath custom options add karein (jaise Extra Cheese, Full Size, Spicy Sauce).
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Variant name (e.g. Extra Cheese / Full Plate)"
+                    value={addonInputName}
+                    onChange={(e) => setAddonInputName(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 text-xs"
+                  />
+                  <div className="relative w-28">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₹</span>
+                    <input
+                      type="number"
+                      placeholder="Extra ₹"
+                      value={addonInputPrice}
+                      onChange={(e) => setAddonInputPrice(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-6 pr-2 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomAddon}
+                    className="bg-orange-600 hover:bg-orange-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition cursor-pointer shrink-0 shadow-md shadow-orange-600/20"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {/* Added variants pills */}
+                {dishAddons.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {dishAddons.map((addon, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-slate-900 border border-orange-500/40 text-orange-200 text-[11px] font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>{addon.name}</span>
+                        <span className="text-emerald-400 font-black">+₹{addon.price}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAddon(idx)}
+                          className="text-slate-400 hover:text-rose-400 ml-1 text-sm font-black cursor-pointer leading-none"
+                          title="Remove variant"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic">
+                    Koi variant add nahi hua hai. Aap 'Extra Cheese (+₹40)' ya 'Large Size (+₹70)' add kar sakte hain.
+                  </p>
+                )}
               </div>
 
               {/* Multi-Photo Cloudflare R2 Upload */}
