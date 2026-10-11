@@ -23,11 +23,16 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const rawRestId = searchParams.get("restaurantId");
+    const rawItemId = searchParams.get("id");
 
     let query = supabase
       .from("menu_items")
       .select("*, restaurants(name, area, cuisine)")
       .order("created_at", { ascending: false });
+
+    if (rawItemId) {
+      query = query.eq("id", rawItemId);
+    }
 
     if (rawRestId && rawRestId !== "all") {
       const resolvedId = legacyMap[rawRestId] || rawRestId;

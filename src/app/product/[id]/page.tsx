@@ -158,45 +158,43 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const productId = (params?.id as string) || "1";
 
-  const [product, setProduct] = useState<Product>(
-    PRODUCTS_DATABASE[productId] || PRODUCTS_DATABASE["1"]
-  );
+  const [product, setProduct] = useState<Product | null>(() => {
+    return PRODUCTS_DATABASE[productId] || null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => !PRODUCTS_DATABASE[productId]);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  // Dynamic fetch
+  // Fast direct fetch by id
   useEffect(() => {
-    fetch("/api/menu")
+    fetch(`/api/menu?id=${productId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.success && data.menuItems?.length > 0) {
-          const found = data.menuItems.find((m: any) => m.id === productId);
-          if (found) {
-            setProduct({
-              id: found.id,
-              name: found.name,
-              restaurantId: found.restaurant_id || "rest-1",
-              restaurantName: found.restaurants?.name || "Ambikapur Kitchen",
-              category: found.category || "Main Course",
-              price: Number(found.price),
-              originalPrice: found.original_price ? Number(found.original_price) : Number(found.price) + 40,
-              isVeg: Boolean(found.is_veg),
-              rating: Number(found.rating) || 4.8,
-              reviewsCount: 150,
-              prepTime: "20-25 Mins",
-              calories: "550 kcal",
-              protein: "24g Protein",
-              description: found.description || "Prepared fresh in Ambikapur.",
-              chefNote: "Cooked to order with finest local ingredients.",
-              imageUrl: found.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
-              ingredients: ["Fresh Spices", "Local Produce", "Pure Ghee & Herbs"],
-            });
-          }
+        const found = data.items?.[0] || data.menuItems?.[0];
+        if (found) {
+          setProduct({
+            id: found.id,
+            name: found.name,
+            restaurantId: found.restaurant_id || "rest-1",
+            restaurantName: found.restaurants?.name || "The Royal Kitchen",
+            category: found.category || "Main Course",
+            price: Number(found.price),
+            originalPrice: found.original_price ? Number(found.original_price) : Number(found.price) + 40,
+            isVeg: Boolean(found.is_veg),
+            rating: Number(found.rating) || 4.8,
+            reviewsCount: 150,
+            prepTime: "20-25 Mins",
+            calories: "550 kcal",
+            protein: "24g Protein",
+            description: found.description || "Prepared fresh in Ambikapur.",
+            chefNote: "Cooked to order with finest local ingredients.",
+            imageUrl: found.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
+            ingredients: ["Fresh Spices", "Local Produce", "Pure Ghee & Herbs"],
+          });
         }
       })
-      .catch((e) => console.warn("Dynamic product fetch notice:", e));
+      .catch((e) => console.warn("Dynamic product fetch notice:", e))
+      .finally(() => setLoading(false));
   }, [productId]);
-
-  const images = parseImages(product.imageUrl);
 
   const [quantity, setQuantity] = useState(1);
   const [spiceLevel, setSpiceLevel] = useState<"Medium" | "Spicy" | "Extra Spicy">("Spicy");
@@ -222,6 +220,65 @@ export default function ProductDetailPage() {
     });
   };
 
+  // 1. Loading Skeleton Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-800 antialiased pb-28">
+        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
+            <div className="w-32 h-4 bg-slate-200 rounded-lg animate-pulse" />
+          </div>
+          <div className="w-9 h-9 rounded-full bg-slate-200 animate-pulse" />
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+          <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm animate-pulse">
+            <div className="h-72 sm:h-96 w-full bg-slate-200" />
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-3 flex-1">
+                  <div className="w-28 h-4 bg-slate-200 rounded" />
+                  <div className="w-3/4 h-8 bg-slate-200 rounded-xl" />
+                  <div className="w-40 h-6 bg-slate-200 rounded" />
+                </div>
+                <div className="w-24 h-10 bg-slate-200 rounded-2xl" />
+              </div>
+              <div className="space-y-2 pt-4 border-t border-slate-100">
+                <div className="w-28 h-4 bg-slate-200 rounded" />
+                <div className="w-full h-4 bg-slate-200 rounded" />
+                <div className="w-5/6 h-4 bg-slate-200 rounded" />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 2. Dish Not Found Screen
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+          <ShoppingBag className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Dish Not Found</h2>
+        <p className="text-xs text-slate-500 max-w-sm">
+          This dish may have been updated or removed by the restaurant partner in Ambikapur.
+        </p>
+        <Link
+          href="/"
+          className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-6 py-3 rounded-2xl shadow-lg transition"
+        >
+          Back to Food Menu
+        </Link>
+      </div>
+    );
+  }
+
+  // Safe to unwrap product here - guaranteed non-null
+  const images = parseImages(product.imageUrl);
   const addonsTotal = Object.values(selectedAddons).reduce((a, b) => a + b, 0);
   const finalUnitPrice = product.price + addonsTotal;
   const totalPrice = finalUnitPrice * quantity;
@@ -230,8 +287,8 @@ export default function ProductDetailPage() {
     try {
       const saved = localStorage.getItem("ambibites_cart");
       const currentCart = saved ? JSON.parse(saved) : {};
-      const existingQty = currentCart[product.id] || 0;
-      currentCart[product.id] = existingQty + quantity;
+      const existingQty = currentCart[product!.id] || 0;
+      currentCart[product!.id] = existingQty + quantity;
       localStorage.setItem("ambibites_cart", JSON.stringify(currentCart));
     } catch {}
 
@@ -247,7 +304,7 @@ export default function ProductDetailPage() {
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-xs">
         <Link
-          href={`/restaurant/${product.restaurantId}`}
+          href={`/restaurant/${product!.restaurantId}`}
           className="flex items-center gap-2 text-slate-700 hover:text-slate-900 font-bold text-xs transition"
         >
           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
