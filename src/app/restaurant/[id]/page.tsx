@@ -34,6 +34,24 @@ interface MenuItem {
   imageUrl: string;
 }
 
+function parseImages(imageUrl: string | undefined): string[] {
+  if (!imageUrl) return ["https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg"];
+  if (imageUrl.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(imageUrl);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+  }
+  return [imageUrl];
+}
+
+const legacyMap: Record<string, string> = {
+  "rest-1": "11111111-1111-1111-1111-111111111111",
+  "rest-2": "22222222-2222-2222-2222-222222222222",
+  "rest-3": "33333333-3333-3333-3333-333333333333",
+  "rest-4": "44444444-4444-4444-4444-444444444444",
+};
+
 const RESTAURANT_DATA: { [key: string]: any } = {
   "rest-1": {
     name: "The Royal Kitchen",
@@ -44,7 +62,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
     deliveryTime: "25-30 min",
     costForTwo: "₹450 for two",
     discount: "20% OFF UPTO ₹100 • Use AMBIKA20",
-    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-1.jpg",
+    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg",
     menu: [
       {
         id: "1",
@@ -57,7 +75,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.8,
         votes: 420,
         description: "Wood-fired slow dum cooked fragrant basmati rice layered with succulent farm fresh chicken, hard boiled egg, saffron & pure ghee.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
       },
       {
         id: "2",
@@ -69,7 +87,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.6,
         votes: 180,
         description: "Charcoal roasted spiced paneer cubes stuffed in flaky butter paratha with tangy pudina chutney.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/2.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/paneer_tikka_butter_roll.jpg",
       },
       {
         id: "3",
@@ -81,7 +99,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.7,
         votes: 215,
         description: "Tender bone-in chicken marinated 12 hours in Kashmiri spices, clay-oven roasted to perfection.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/3.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/tandoori_roasted_chicken.jpg",
       },
       {
         id: "4",
@@ -93,7 +111,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.5,
         votes: 190,
         description: "Paneer Butter Masala, Dal Tadka, Seasonal Veg, 4 Butter Tawa Rotis, Jeera Rice, Salad, Pickle & Gulab Jamun.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/4.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/ambikapur_royal_veg_thali.jpg",
       },
       {
         id: "9",
@@ -104,7 +122,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.4,
         votes: 155,
         description: "Freshly made crispy aloo patty layered with sweetened curd, tamarind chutney and sev.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/9.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/crispy_aloo_tikki_chaat.jpg",
       },
       {
         id: "10",
@@ -115,7 +133,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.9,
         votes: 210,
         description: "Rich blended mango pulp with genuine Ambikapur kulfi rabdi and crushed dry fruits.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/10.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/fresh_mango_kulfi_thickshake.jpg",
       },
     ],
   },
@@ -128,7 +146,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
     deliveryTime: "20-25 min",
     costForTwo: "₹300 for two",
     discount: "FLAT ₹50 OFF on orders above ₹249",
-    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-2.jpg",
+    bannerUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/burger_hub.jpg",
     menu: [
       {
         id: "5",
@@ -140,7 +158,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.6,
         votes: 130,
         description: "Crispy herb patty loaded with molten cheddar cheese, pickled jalapeños and secret house dressing.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/5.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/double_cheese_burger.jpg",
       },
       {
         id: "6",
@@ -151,7 +169,7 @@ const RESTAURANT_DATA: { [key: string]: any } = {
         rating: 4.8,
         votes: 95,
         description: "Golden fried juicy chicken wings tossed vigorously in fiery African peri-peri spice dust.",
-        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/6.jpg",
+        imageUrl: "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/peri_peri_chicken_wings.jpg",
       },
     ],
   },
@@ -172,9 +190,10 @@ export default function RestaurantDetailPage() {
   useEffect(() => {
     async function loadDynamicRestaurant() {
       try {
+        const resolvedId = legacyMap[restId] || restId;
         const [resRes, menuRes] = await Promise.all([
           fetch("/api/restaurants"),
-          fetch(`/api/menu?restaurantId=${restId}`),
+          fetch(`/api/menu?restaurantId=${resolvedId}`),
         ]);
         const resData = await resRes.json();
         const menuData = await menuRes.json();
@@ -182,25 +201,29 @@ export default function RestaurantDetailPage() {
         if (resData.success && resData.restaurants?.length > 0) {
           const matched = resData.restaurants.find(
             (r: any) =>
+              r.id === resolvedId ||
               r.id === restId ||
+              r.slug === restId ||
               r.name.toLowerCase().replace(/\s+/g, "-") === restId.toLowerCase()
-          );
+          ) || resData.restaurants[0];
 
           if (matched) {
+            const rawMenuItems = menuData.items || menuData.menuItems || [];
             let fetchedMenu: MenuItem[] = [];
-            if (menuData.success && menuData.items?.length > 0) {
-              fetchedMenu = menuData.items.map((m: any) => ({
+
+            if (rawMenuItems.length > 0) {
+              fetchedMenu = rawMenuItems.map((m: any) => ({
                 id: m.id,
                 name: m.name,
-                category: m.category || "Main",
+                category: m.category || "Main Course",
                 price: Number(m.price),
                 originalPrice: m.original_price ? Number(m.original_price) : undefined,
                 isVeg: Boolean(m.is_veg),
                 isBestseller: Boolean(m.is_bestseller),
-                rating: Number(m.rating) || 4.7,
+                rating: Number(m.rating) || 4.8,
                 votes: 120,
                 description: m.description || "",
-                imageUrl: m.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/1.jpg",
+                imageUrl: m.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/food/special_chicken_dum_biryani.jpg",
               }));
             } else if (RESTAURANT_DATA[restId]?.menu) {
               fetchedMenu = RESTAURANT_DATA[restId].menu;
@@ -208,16 +231,20 @@ export default function RestaurantDetailPage() {
               fetchedMenu = RESTAURANT_DATA["rest-1"].menu;
             }
 
+            const rawBanner = matched.banner_url || matched.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/the_royal_kitchen.jpg";
+            const bannerParsed = parseImages(rawBanner)[0];
+
             setRestaurant({
+              id: matched.id,
               name: matched.name,
-              cuisine: matched.cuisine_types?.join(", ") || "Multi-Cuisine, Fresh Ambikapur Food",
-              area: matched.address || "Ambikapur",
+              cuisine: matched.cuisine || matched.cuisine_types?.join(", ") || "North Indian, Mughlai, Biryani",
+              area: matched.area || matched.address || "Gandhi Chowk, Ambikapur",
               rating: Number(matched.rating) || 4.8,
-              reviews: 500,
-              deliveryTime: "25-30 min",
-              costForTwo: "₹350 for two",
+              reviews: 1420,
+              deliveryTime: matched.delivery_time_text || "25-30 min",
+              costForTwo: "₹400 for two",
               discount: "20% OFF UPTO ₹100 • Use AMBIKA20",
-              bannerUrl: matched.image_url || "https://pub-6173aeb8009d4efd9966052cb0ea9b71.r2.dev/restaurants/rest-1.jpg",
+              bannerUrl: bannerParsed,
               menu: fetchedMenu,
             });
           }
@@ -436,7 +463,7 @@ export default function RestaurantDetailPage() {
                   <div className="flex flex-col items-center justify-between w-28 shrink-0">
                     <Link href={`/product/${dish.id}`} className="w-28 h-24 rounded-2xl overflow-hidden bg-slate-100 shadow-inner block">
                       <img
-                        src={dish.imageUrl}
+                        src={parseImages(dish.imageUrl)[0]}
                         alt={dish.name}
                         className="w-full h-full object-cover hover:scale-105 transition duration-300"
                       />

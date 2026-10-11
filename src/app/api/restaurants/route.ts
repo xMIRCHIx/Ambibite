@@ -83,6 +83,13 @@ export async function PATCH(req: Request) {
     const updates: Record<string, any> = {};
     if (is_open !== undefined) updates.is_open = is_open;
     if (is_blocked !== undefined) updates.is_blocked = is_blocked;
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.cuisine !== undefined) updates.cuisine = body.cuisine;
+    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.area !== undefined) updates.area = body.area;
+    if (body.address !== undefined) updates.address = body.address;
+    if (body.deliveryTime !== undefined) updates.delivery_time_text = body.deliveryTime;
+    if (body.bannerUrl !== undefined) updates.banner_url = body.bannerUrl;
 
     const { data, error } = await supabase
       .from("restaurants")
