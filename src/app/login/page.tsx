@@ -10,6 +10,7 @@ import {
   User,
   Lock,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Store,
   ChevronLeft,
@@ -22,7 +23,13 @@ import {
   FileCheck,
   Check,
   Clock,
-  ExternalLink,
+  Building2,
+  Car,
+  FileText,
+  BadgeCheck,
+  Eye,
+  EyeOff,
+  Flame,
 } from "lucide-react";
 import { compressImage } from "@/lib/imageCompression";
 
@@ -34,9 +41,13 @@ export default function LoginPage() {
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [activeRole, setActiveRole] = useState<RoleType>("customer");
 
+  // Multi-step Registration Wizard: Step 1 (Basic Details & OTP) -> Step 2 (KYC & Documents)
+  const [regStep, setRegStep] = useState<1 | 2>(1);
+
   // Login form states
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Common Registration states
   const [fullName, setFullName] = useState("");
@@ -52,7 +63,7 @@ export default function LoginPage() {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
-  // Restaurant KYC states
+  // Restaurant Partner states
   const [kitchenName, setKitchenName] = useState("");
   const [cuisine, setCuisine] = useState("North Indian, Fast Food, Snacks");
   const [area, setArea] = useState("Gandhi Chowk");
@@ -67,14 +78,14 @@ export default function LoginPage() {
   const [isUploadingPan, setIsUploadingPan] = useState(false);
   const [isUploadingAadhaar, setIsUploadingAadhaar] = useState(false);
 
-  // Rider KYC states
+  // Rider states
   const [vehicleNumber, setVehicleNumber] = useState("CG 15 ");
   const [dlNumber, setDlNumber] = useState("");
   const [dlDocUrl, setDlDocUrl] = useState("");
   const [dlDocStats, setDlDocStats] = useState<string | null>(null);
   const [isUploadingDl, setIsUploadingDl] = useState(false);
 
-  // UI feedback states
+  // Feedback & Application status
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -107,12 +118,13 @@ export default function LoginPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
     setSubmittedPending(false);
+    setRegStep(1);
   }, [activeRole, authMode]);
 
   // 1. Send OTP via Brevo
   const handleSendOtp = async () => {
     if (!email || !email.includes("@")) {
-      setErrorMsg("Please enter a valid email address to receive OTP.");
+      setErrorMsg("Please enter a valid email address to receive your OTP.");
       return;
     }
 
@@ -177,7 +189,7 @@ export default function LoginPage() {
     }
   };
 
-  // 3. Upload & Compress Document to Cloudflare R2
+  // 3. Compress & Upload to Cloudflare R2
   const handleCompressAndUpload = async (
     file: File,
     type: "pan" | "aadhaar" | "dl"
@@ -189,7 +201,6 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      // Step A: Client-Side Compression to ~150KB
       const compressed = await compressImage(file, {
         maxWidth: 1600,
         maxHeight: 1600,
@@ -198,7 +209,6 @@ export default function LoginPage() {
 
       const statsText = `${compressed.originalSizeKb} KB ➔ ${compressed.compressedSizeKb} KB (${compressed.savedPercent}% saved)`;
 
-      // Step B: Upload Compressed Blob to Cloudflare R2 CDN
       const fd = new FormData();
       fd.append("file", compressed.file);
 
@@ -231,7 +241,38 @@ export default function LoginPage() {
     }
   };
 
-  // 4. Handle Registration Submit
+  // Validate Step 1 Before Moving to Step 2
+  const handleProceedToStep2 = () => {
+    setErrorMsg(null);
+    if (activeRole === "partner" && !kitchenName.trim()) {
+      setErrorMsg("Please enter your Restaurant / Kitchen name.");
+      return;
+    }
+    if (!fullName.trim()) {
+      setErrorMsg("Please enter the contact / owner full name.");
+      return;
+    }
+    if (!phone.trim() || phone.trim() === "+91") {
+      setErrorMsg("Please enter a valid phone number.");
+      return;
+    }
+    if (!isEmailVerified) {
+      setErrorMsg("Please verify your email address with the OTP first.");
+      return;
+    }
+    if (!regPassword || regPassword.length < 6) {
+      setErrorMsg("Please create a password of at least 6 characters.");
+      return;
+    }
+    if (activeRole === "rider" && !vehicleNumber.trim()) {
+      setErrorMsg("Please enter your vehicle and plate details.");
+      return;
+    }
+
+    setRegStep(2);
+  };
+
+  // 4. Submit Registration
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -277,7 +318,7 @@ export default function LoginPage() {
         if (data.status === "pending_verification") {
           setSubmittedPending(true);
         } else {
-          setSuccessMsg("Account created! Redirecting to food menu...");
+          setSuccessMsg("Account created! Redirecting to food store...");
           setTimeout(() => router.push("/"), 800);
         }
       } else {
@@ -290,7 +331,7 @@ export default function LoginPage() {
     }
   };
 
-  // 5. Handle Login Submit
+  // 5. Submit Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -311,7 +352,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        setSuccessMsg(`Welcome, ${data.user.name}! Redirecting...`);
+        setSuccessMsg(`Welcome back to zuppo! Redirecting...`);
         setTimeout(() => {
           if (activeRole === "partner") router.push("/partner");
           else if (activeRole === "rider") router.push("/rider");
@@ -328,7 +369,7 @@ export default function LoginPage() {
     }
   };
 
-  // Quick Demo Logins for existing restaurants
+  // Quick Demo Kitchen Logins
   const quickLoginKitchen = (user: string, pass: string) => {
     setUsername(user);
     setPassword(pass);
@@ -344,89 +385,96 @@ export default function LoginPage() {
           setSuccessMsg(`Logged in to ${d.user.restaurantName}!`);
           setTimeout(() => router.push("/partner"), 600);
         } else {
-          setErrorMsg(d.error || "Failed");
+          setErrorMsg(d.error || "Login failed");
           setLoading(false);
         }
       });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen bg-[#FAF7F2] text-stone-900 flex flex-col justify-between selection:bg-orange-500 selection:text-white font-sans">
       {/* Top Navbar */}
-      <header className="px-6 py-4 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-40">
+      <header className="px-6 py-4 border-b border-[#EDE6DC] bg-[#FAF7F2]/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-40 shadow-xs">
         <Link
           href="/"
-          className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-xs transition"
+          className="flex items-center gap-2 text-stone-500 hover:text-stone-900 font-bold text-xs transition duration-200"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Back to Food Store</span>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] font-bold text-slate-400">
-            Ambikapur Identity Portal
+        {/* Brand Pill in Header */}
+        <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-full border border-[#E8E0D5] shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] font-black tracking-tight text-stone-700">
+            zuppo <span className="text-orange-600 font-medium">Identity Portal</span>
           </span>
         </div>
       </header>
 
-      {/* Main Form Center */}
+      {/* Main Center Content */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-xl space-y-6">
           {/* Logo & Header Title */}
           <div className="text-center space-y-2">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <span className="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-orange-600/30 group-hover:scale-105 transition">
-                A
+              <span className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-orange-500/20 group-hover:scale-105 group-hover:rotate-2 transition-all duration-300">
+                z
               </span>
               <div className="text-left">
-                <span className="text-2xl font-black tracking-tight text-white block">
-                  AmbiBites
+                <span className="text-3xl font-black tracking-tight text-stone-900 block leading-tight">
+                  zuppo<span className="text-orange-600">.</span>
                 </span>
-                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block leading-none">
-                  Ambikapur Express
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block leading-none">
+                  Food, Fast & Fresh
                 </span>
               </div>
             </Link>
 
-            <h2 className="text-xl sm:text-2xl font-black text-white pt-2">
+            <h1 className="text-xl sm:text-2xl font-black text-stone-900 pt-1 tracking-tight">
               {authMode === "login"
-                ? "Welcome back to AmbiBites"
-                : "Create Your Account & Get Started"}
-            </h2>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                ? "Welcome back to zuppo"
+                : activeRole === "partner"
+                ? "Partner with zuppo"
+                : activeRole === "rider"
+                ? "Join as a zuppo Delivery Rider"
+                : "Create Your zuppo Account"}
+            </h1>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto font-medium leading-relaxed">
               {authMode === "login"
-                ? "Access your food orders, restaurant kitchen POS, or rider fleet dashboard."
-                : "Register with your verified email and submit KYC to start operating in Ambikapur."}
+                ? "Access your hungry orders, live kitchen order dispatch, or rider delivery fleet."
+                : activeRole === "partner" || activeRole === "rider"
+                ? "Complete the quick 2-step registration & KYC verification to start earning."
+                : "Order your favorite meals across the city with lightning fast delivery."}
             </p>
           </div>
 
-          {/* Mode Switcher: Login vs Register */}
-          <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+          {/* Mode Switcher: Sign In vs Register Tabs */}
+          <div className="flex bg-[#EFE9DF] p-1.5 rounded-2xl border border-[#E5DDD2] shadow-inner">
             <button
               onClick={() => setAuthMode("login")}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all duration-200 cursor-pointer ${
                 authMode === "login"
-                  ? "bg-orange-600 text-white shadow-md"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-stone-900 shadow-md shadow-stone-300/40"
+                  : "text-stone-500 hover:text-stone-900"
               }`}
             >
               Sign In (Login)
             </button>
             <button
               onClick={() => setAuthMode("register")}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all duration-200 cursor-pointer ${
                 authMode === "register"
-                  ? "bg-orange-600 text-white shadow-md"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-stone-900 shadow-md shadow-stone-300/40"
+                  : "text-stone-500 hover:text-stone-900"
               }`}
             >
-              Register New Account (KYC)
+              Register New Account {activeRole !== "customer" && "(KYC)"}
             </button>
           </div>
 
           {/* Role Picker Pills */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800">
+          <div className="grid grid-cols-4 gap-2 bg-[#EFE9DF]/70 p-1.5 rounded-2xl border border-[#E5DDD2]">
             {[
               { id: "customer", label: "Customer", icon: User },
               { id: "partner", label: "Restaurant", icon: Store },
@@ -442,15 +490,15 @@ export default function LoginPage() {
                 <button
                   key={role.id}
                   onClick={() => setActiveRole(role.id as RoleType)}
-                  className={`flex flex-col items-center gap-1.5 py-2.5 px-2 rounded-xl transition cursor-pointer ${
+                  className={`flex flex-col items-center gap-1.5 py-2.5 px-2 rounded-xl transition-all duration-200 cursor-pointer ${
                     isSelected
-                      ? "bg-slate-800 text-white border border-orange-500/50 shadow-sm"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-white text-orange-600 font-bold shadow-xs border border-orange-200/80 -translate-y-0.5"
+                      : "text-stone-500 hover:text-stone-800 hover:bg-white/50"
                   }`}
                 >
                   <Icon
                     className={`w-4 h-4 ${
-                      isSelected ? "text-orange-400" : "text-slate-500"
+                      isSelected ? "text-orange-600" : "text-stone-400"
                     }`}
                   />
                   <span className="text-[11px] font-bold">{role.label}</span>
@@ -459,19 +507,19 @@ export default function LoginPage() {
             })}
           </div>
 
-          {/* Card Wrapper */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+          {/* Main Card Container */}
+          <div className="bg-white border border-[#EDE5DA] rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_20px_50px_rgba(200,180,160,0.15)] relative overflow-hidden">
             {/* Feedback Notifications */}
             {errorMsg && (
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-start gap-2.5 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2.5 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {successMsg && (
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-start gap-2.5 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-start gap-2.5 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
                 <span>{successMsg}</span>
               </div>
             )}
@@ -479,43 +527,43 @@ export default function LoginPage() {
             {/* PENDING APPROVAL SUBMITTED SCREEN */}
             {submittedPending ? (
               <div className="text-center py-6 space-y-5 animate-in zoom-in-95">
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto border border-amber-200 shadow-inner">
                   <Clock className="w-8 h-8 animate-pulse" />
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-xl font-black text-white">
+                  <h3 className="text-xl font-black text-stone-900 tracking-tight">
                     Application Submitted for Verification!
                   </h3>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
                     Thank you, <strong>{fullName || kitchenName}</strong>! Your
-                    KYC documents and credentials have been submitted to the{" "}
-                    <strong>AmbiBites Ambikapur Admin Team</strong>.
+                    details and KYC documents have been securely received by the{" "}
+                    <strong>zuppo Admin Team</strong>.
                   </p>
                 </div>
 
-                <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-400">
+                <div className="p-4 bg-[#FAF7F2] rounded-2xl border border-[#EDE5DA] text-left space-y-2.5 text-xs">
+                  <div className="flex justify-between text-stone-500">
                     <span>Role Applied:</span>
-                    <strong className="text-white uppercase font-black">
+                    <strong className="text-stone-900 uppercase font-black">
                       {activeRole === "partner" ? "Restaurant Partner" : "Fleet Delivery Rider"}
                     </strong>
                   </div>
-                  <div className="flex justify-between text-slate-400">
+                  <div className="flex justify-between text-stone-500">
                     <span>Verification Status:</span>
-                    <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <span className="text-amber-700 font-bold flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
                       <Clock className="w-3 h-3" /> Under Review (2-4 hrs)
                     </span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
+                  <div className="flex justify-between text-stone-500">
                     <span>Email Updates:</span>
-                    <span className="text-white font-mono">{email}</span>
+                    <span className="text-stone-900 font-mono font-medium">{email}</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-500">
-                  You will receive a confirmation email via Brevo once your
-                  account is approved. You can then log in and start receiving orders.
+                <p className="text-[11px] text-stone-400">
+                  You will receive an approval email from <strong>zuppo</strong> as soon as your
+                  profile is verified. You can then log in and start receiving orders.
                 </p>
 
                 <button
@@ -523,516 +571,643 @@ export default function LoginPage() {
                     setSubmittedPending(false);
                     setAuthMode("login");
                   }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-6 py-3 rounded-2xl shadow-lg transition"
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-6 py-3 rounded-2xl shadow-lg shadow-orange-600/20 hover:shadow-xl transition-all duration-200 cursor-pointer"
                 >
                   Return to Sign In Screen
                 </button>
               </div>
             ) : authMode === "login" ? (
-              /* ================== LOGIN FORM ================== */
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                    {activeRole === "customer"
-                      ? "Email or Mobile Number"
-                      : activeRole === "partner"
-                      ? "Kitchen Email or Username"
-                      : activeRole === "rider"
-                      ? "Rider Email or Username"
-                      : "Admin Username / Email"}
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder={
-                        activeRole === "partner"
-                          ? "royal@ambibite.com"
-                          : activeRole === "rider"
-                          ? "rider@ambibite.com"
-                          : "user@example.com"
-                      }
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-[11px] font-bold text-slate-300">
-                      Password
+              /* ================== SIGN IN (LOGIN) ================== */
+              <div className="space-y-5">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                      {activeRole === "customer"
+                        ? "Email or Mobile Number"
+                        : activeRole === "partner"
+                        ? "Kitchen Email / Username"
+                        : activeRole === "rider"
+                        ? "Rider Email / Username"
+                        : "Admin Email / Username"}
                     </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alert(
-                          "To reset your password, please register with your verified email or contact Ambikapur Admin."
-                        )
-                      }
-                      className="text-[10px] text-orange-400 hover:underline"
-                    >
-                      Forgot?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition font-medium"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-black text-xs py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Authenticating in Ambikapur Grid...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Sign In as {activeRole.toUpperCase()}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                {/* Quick Demo Kitchen Logins */}
-                {activeRole === "partner" && (
-                  <div className="pt-4 border-t border-slate-800/80 space-y-2">
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                      Quick Demo Kitchen Credentials:
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => quickLoginKitchen("royal", "royal123")}
-                        className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-orange-500/50 text-left"
-                      >
-                        <strong className="text-white block">The Royal Kitchen</strong>
-                        <span className="text-slate-500 text-[10px]">royal / royal123</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => quickLoginKitchen("burger", "burger123")}
-                        className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-orange-500/50 text-left"
-                      >
-                        <strong className="text-white block">Burger Hub & Cafe</strong>
-                        <span className="text-slate-500 text-[10px]">burger / burger123</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </form>
-            ) : (
-              /* ================== REGISTRATION & KYC FORM ================== */
-              <form onSubmit={handleRegister} className="space-y-5">
-                {/* Step 1: Basic Info */}
-                <div className="space-y-3.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5 border-b border-slate-800 pb-1">
-                    <span>1. Basic Profile & Identity</span>
-                  </h4>
-
-                  {activeRole === "partner" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                          Restaurant / Cafe Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Royal Sweets & Cafe"
-                          value={kitchenName}
-                          onChange={(e) => setKitchenName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                          Owner / Partner Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Ramesh Agrawal"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                        Full Legal Name *
-                      </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Rahul Sharma"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
+                        placeholder={
+                          activeRole === "partner"
+                            ? "e.g. royal@zuppo.com"
+                            : activeRole === "rider"
+                            ? "e.g. rider@zuppo.com"
+                            : "you@example.com"
+                        }
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-10 pr-4 py-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition font-medium"
                       />
                     </div>
-                  )}
+                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                        Phone Number *
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[11px] font-bold text-stone-700">
+                        Password
                       </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="+91 98261 44551"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          alert(
+                            "To reset your password, please register with your verified email or contact zuppo Admin."
+                          )
+                        }
+                        className="text-[10px] text-orange-600 hover:underline font-bold"
+                      >
+                        Forgot?
+                      </button>
                     </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                        Create Password (min 6 chars) *
-                      </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         required
                         placeholder="••••••••"
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {activeRole === "partner" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                          Ambikapur Area *
-                        </label>
-                        <select
-                          value={area}
-                          onChange={(e) => setArea(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                        >
-                          <option>Gandhi Chowk</option>
-                          <option>Ghadi Chowk</option>
-                          <option>Ring Road East</option>
-                          <option>Kedarpur</option>
-                          <option>Sadhar Hospital Road</option>
-                          <option>Main Market</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                          Primary Cuisines
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. North Indian, Biryani"
-                          value={cuisine}
-                          onChange={(e) => setCuisine(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {activeRole === "rider" && (
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                        Vehicle Details & Plate Number *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Hero Splendor (CG 15 AB 1002)"
-                        value={vehicleNumber}
-                        onChange={(e) => setVehicleNumber(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Step 2: Email OTP Verification (Brevo) */}
-                <div className="space-y-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>2. Email OTP Verification (Brevo API)</span>
-                    </h4>
-                    {isEmailVerified && (
-                      <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Verified
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      required
-                      disabled={isEmailVerified}
-                      placeholder="Enter email e.g. you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none disabled:opacity-60"
-                    />
-                    <button
-                      type="button"
-                      disabled={isSendingOtp || isEmailVerified || resendCountdown > 0}
-                      onClick={handleSendOtp}
-                      className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold text-[11px] px-3.5 py-2 rounded-xl transition shrink-0"
-                    >
-                      {isSendingOtp
-                        ? "Sending..."
-                        : resendCountdown > 0
-                        ? `Resend in ${resendCountdown}s`
-                        : "Send OTP"}
-                    </button>
-                  </div>
-
-                  {otpSent && !isEmailVerified && (
-                    <div className="flex items-center gap-2 pt-2 animate-in fade-in">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="Enter 6-digit OTP"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        className="w-36 bg-slate-900 border border-orange-500/60 rounded-xl px-3 py-2 text-xs text-white text-center font-mono tracking-widest outline-none"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-10 pr-10 py-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition font-medium"
                       />
                       <button
                         type="button"
-                        disabled={isVerifyingOtp}
-                        onClick={handleVerifyOtp}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
                       >
-                        {isVerifyingOtp ? "Verifying..." : "Verify Code"}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Step 3: KYC Documents (Only for Restaurant & Rider) */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 text-white font-black text-xs py-3.5 px-4 rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Signing in to zuppo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In as {activeRole.toUpperCase()}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Quick Demo Kitchen Logins */}
+                  {activeRole === "partner" && (
+                    <div className="pt-3 border-t border-[#EDE5DA] space-y-2">
+                      <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider">
+                        Demo Kitchen One-Click Logins:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => quickLoginKitchen("royal", "royal123")}
+                          className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white"
+                        >
+                          <strong className="text-stone-900 block font-bold">The Royal Kitchen</strong>
+                          <span className="text-stone-400 text-[10px]">royal / royal123</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => quickLoginKitchen("burger", "burger123")}
+                          className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white"
+                        >
+                          <strong className="text-stone-900 block font-bold">Burger Hub & Cafe</strong>
+                          <span className="text-stone-400 text-[10px]">burger / burger123</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </form>
+
+                {/* Footer Switch Link */}
+                <div className="text-center pt-2 border-t border-[#EDE5DA]">
+                  <p className="text-xs text-stone-500">
+                    Don&apos;t have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("register")}
+                      className="font-black text-orange-600 hover:text-orange-700 underline underline-offset-4 cursor-pointer"
+                    >
+                      Make a new account
+                    </button>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* ================== REGISTRATION WIZARD (ZOMATO/SWIGGY STYLE 2-SLIDE) ================== */
+              <div className="space-y-5">
+                {/* 2-Step Progress Indicator for Restaurant and Rider */}
                 {(activeRole === "partner" || activeRole === "rider") && (
-                  <div className="space-y-4 p-4 bg-slate-950 rounded-2xl border border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
-                        <FileCheck className="w-3.5 h-3.5" />
-                        <span>3. KYC Documents (Compressed for Cloudflare R2)</span>
-                      </h4>
-                      <span className="text-[10px] text-slate-500 font-semibold">
-                        Max ~200KB auto-compression
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-stone-600">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                            regStep === 1
+                              ? "bg-orange-600 text-white"
+                              : "bg-emerald-600 text-white"
+                          }`}
+                        >
+                          {regStep > 1 ? "✓" : "1"}
+                        </span>
+                        Step 1: Account & Details
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                            regStep === 2
+                              ? "bg-orange-600 text-white"
+                              : "bg-stone-200 text-stone-500"
+                          }`}
+                        >
+                          2
+                        </span>
+                        Step 2: KYC & Documents
                       </span>
                     </div>
 
-                    {/* Restaurant Partner Docs */}
-                    {activeRole === "partner" && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                              FSSAI License No.
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="14-digit FSSAI Number"
-                              value={fssaiNumber}
-                              onChange={(e) => setFssaiNumber(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                              PAN Card Number
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="ABCDE1234F"
-                              value={panNumber}
-                              onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none uppercase"
-                            />
-                          </div>
-                        </div>
-
-                        {/* PAN Photo Upload */}
-                        <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">
-                              PAN Card Photo
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              {panDocStats || "JPG, PNG (Auto-compressed to ~150KB)"}
-                            </span>
-                          </div>
-                          <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl border border-slate-700 inline-flex items-center gap-1.5 transition">
-                            <Upload className="w-3 h-3 text-orange-400" />
-                            <span>
-                              {isUploadingPan
-                                ? "Compressing & Uploading..."
-                                : panDocUrl
-                                ? "Uploaded ✓"
-                                : "Upload Photo"}
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleCompressAndUpload(f, "pan");
-                              }}
-                            />
-                          </label>
-                        </div>
-
-                        {/* Aadhaar Photo Upload */}
-                        <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">
-                              Aadhaar Card Photo
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              {aadhaarDocStats || "JPG, PNG (Auto-compressed to ~150KB)"}
-                            </span>
-                          </div>
-                          <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl border border-slate-700 inline-flex items-center gap-1.5 transition">
-                            <Upload className="w-3 h-3 text-orange-400" />
-                            <span>
-                              {isUploadingAadhaar
-                                ? "Compressing & Uploading..."
-                                : aadhaarDocUrl
-                                ? "Uploaded ✓"
-                                : "Upload Photo"}
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleCompressAndUpload(f, "aadhaar");
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Rider Docs */}
-                    {activeRole === "rider" && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                              Driving License (DL) Number
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. CG-15-2022001122"
-                              value={dlNumber}
-                              onChange={(e) => setDlNumber(e.target.value.toUpperCase())}
-                              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none uppercase"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                              Aadhaar Number
-                            </label>
-                            <input
-                              type="text"
-                              maxLength={12}
-                              placeholder="12-digit Aadhaar Number"
-                              value={aadhaarNumber}
-                              onChange={(e) => setAadhaarNumber(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        {/* DL Photo Upload */}
-                        <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">
-                              Driving License Photo
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              {dlDocStats || "JPG, PNG (Auto-compressed to ~150KB)"}
-                            </span>
-                          </div>
-                          <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl border border-slate-700 inline-flex items-center gap-1.5 transition">
-                            <Upload className="w-3 h-3 text-orange-400" />
-                            <span>
-                              {isUploadingDl
-                                ? "Compressing & Uploading..."
-                                : dlDocUrl
-                                ? "Uploaded ✓"
-                                : "Upload Photo"}
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleCompressAndUpload(f, "dl");
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    )}
+                    {/* Progress Bar Line */}
+                    <div className="w-full h-1.5 bg-[#EDE5DA] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-orange-600 to-amber-500 transition-all duration-300 rounded-full"
+                        style={{ width: regStep === 1 ? "50%" : "100%" }}
+                      />
+                    </div>
                   </div>
                 )}
 
-                {/* Submit Register Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-black text-xs py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Submitting Registration to Ambikapur Admin...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>
-                        {activeRole === "customer"
-                          ? "Complete Registration & Start Ordering"
-                          : `Submit ${activeRole.toUpperCase()} Application for Admin Approval`}
-                      </span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+                <form onSubmit={handleRegister} className="space-y-4">
+                  {/* ================= SLIDE / STEP 1: BASIC DETAILS & OTP ================= */}
+                  {(regStep === 1 || activeRole === "customer") && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
+                      {activeRole === "partner" ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                              Restaurant / Kitchen Name *
+                            </label>
+                            <div className="relative">
+                              <Building2 className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Royal Sweets & Cafe"
+                                value={kitchenName}
+                                onChange={(e) => setKitchenName(e.target.value)}
+                                className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-9 pr-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                              Owner / Manager Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Ramesh Agrawal"
+                              value={fullName}
+                              onChange={(e) => setFullName(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl px-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                            Full Legal Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Rahul Sharma"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl px-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition"
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                            Mobile Number *
+                          </label>
+                          <div className="relative">
+                            <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="tel"
+                              required
+                              placeholder="+91 98261 44551"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-9 pr-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                            Create Password (min 6 chars) *
+                          </label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="password"
+                              required
+                              placeholder="••••••••"
+                              value={regPassword}
+                              onChange={(e) => setRegPassword(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-9 pr-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Partner Details */}
+                      {activeRole === "partner" && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                              City Area / Hub *
+                            </label>
+                            <select
+                              value={area}
+                              onChange={(e) => setArea(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl px-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 outline-none transition"
+                            >
+                              <option>Gandhi Chowk</option>
+                              <option>Ghadi Chowk</option>
+                              <option>Ring Road East</option>
+                              <option>Kedarpur</option>
+                              <option>Sadhar Hospital Road</option>
+                              <option>Main Market</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                              Primary Cuisines
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. North Indian, Fast Food"
+                              value={cuisine}
+                              onChange={(e) => setCuisine(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl px-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 outline-none transition"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rider Details */}
+                      {activeRole === "rider" && (
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-700 block mb-1">
+                            Vehicle Name & Plate Number *
+                          </label>
+                          <div className="relative">
+                            <Car className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Hero Splendor (CG 15 AB 1002)"
+                              value={vehicleNumber}
+                              onChange={(e) => setVehicleNumber(e.target.value)}
+                              className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-2xl pl-9 pr-3 py-2 text-xs text-stone-900 focus:bg-white focus:border-orange-500 outline-none transition"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Email OTP Verification Box (Brevo) */}
+                      <div className="p-3.5 bg-[#FAF7F2] rounded-2xl border border-[#EDE5DA] space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-black text-stone-700 flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-orange-600" />
+                            <span>Verify Email via Brevo OTP *</span>
+                          </label>
+                          {isEmailVerified && (
+                            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Verified
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            required
+                            disabled={isEmailVerified}
+                            placeholder="Enter email e.g. you@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="flex-1 bg-white border border-[#E5DDD2] rounded-xl px-3 py-2 text-xs text-stone-900 focus:border-orange-500 outline-none disabled:opacity-60 font-medium"
+                          />
+                          <button
+                            type="button"
+                            disabled={isSendingOtp || isEmailVerified || resendCountdown > 0}
+                            onClick={handleSendOtp}
+                            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold text-[11px] px-3.5 py-2 rounded-xl transition duration-150 shrink-0 cursor-pointer shadow-xs"
+                          >
+                            {isSendingOtp
+                              ? "Sending..."
+                              : resendCountdown > 0
+                              ? `Resend in ${resendCountdown}s`
+                              : "Send OTP"}
+                          </button>
+                        </div>
+
+                        {otpSent && !isEmailVerified && (
+                          <div className="flex items-center gap-2 pt-1 animate-in fade-in">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              placeholder="6-digit OTP"
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value)}
+                              className="w-32 bg-white border border-orange-500 rounded-xl px-3 py-2 text-xs text-stone-900 text-center font-mono tracking-widest outline-none font-bold shadow-xs"
+                            />
+                            <button
+                              type="button"
+                              disabled={isVerifyingOtp}
+                              onClick={handleVerifyOtp}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition duration-150 cursor-pointer shadow-xs"
+                            >
+                              {isVerifyingOtp ? "Checking..." : "Verify Code"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Customer Single-Step Submit */}
+                      {activeRole === "customer" ? (
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 text-white font-black text-xs py-3.5 px-4 rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Creating Account...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Register & Start Ordering</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        /* Partner & Rider: Slide 1 -> Slide 2 Trigger */
+                        <button
+                          type="button"
+                          onClick={handleProceedToStep2}
+                          className="w-full bg-stone-900 hover:bg-stone-800 text-white font-black text-xs py-3.5 px-4 rounded-2xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>Continue to Step 2: KYC & Documents</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   )}
-                </button>
-              </form>
+
+                  {/* ================= SLIDE / STEP 2: KYC & COMPLIANCE DOCUMENTS ================= */}
+                  {regStep === 2 && (activeRole === "partner" || activeRole === "rider") && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900">
+                        <BadgeCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="font-semibold">
+                          Upload clear document photos. All images are compressed client-side to &lt;200KB before uploading to Cloudflare CDN.
+                        </span>
+                      </div>
+
+                      {/* Partner Specific Documents */}
+                      {activeRole === "partner" && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[10px] font-bold text-stone-700 block mb-1">
+                                FSSAI License Number
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="14-digit FSSAI"
+                                value={fssaiNumber}
+                                onChange={(e) => setFssaiNumber(e.target.value)}
+                                className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-xl px-3 py-2 text-xs text-stone-900 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-stone-700 block mb-1">
+                                PAN Card Number
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="ABCDE1234F"
+                                value={panNumber}
+                                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                                className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-xl px-3 py-2 text-xs text-stone-900 outline-none uppercase"
+                              />
+                            </div>
+                          </div>
+
+                          {/* PAN Photo */}
+                          <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#EDE5DA] flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-stone-900 block">
+                                PAN Card Photo
+                              </span>
+                              <span className="text-[10px] text-stone-500">
+                                {panDocStats || "JPG / PNG (Auto-compressed to ~150KB)"}
+                              </span>
+                            </div>
+                            <label className="cursor-pointer bg-white hover:bg-stone-50 text-stone-900 font-bold text-[11px] px-3.5 py-1.5 rounded-xl border border-[#E0D8CC] shadow-xs inline-flex items-center gap-1.5 transition">
+                              <Upload className="w-3.5 h-3.5 text-orange-600" />
+                              <span>
+                                {isUploadingPan
+                                  ? "Uploading..."
+                                  : panDocUrl
+                                  ? "Uploaded ✓"
+                                  : "Upload Photo"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleCompressAndUpload(f, "pan");
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {/* Aadhaar Photo */}
+                          <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#EDE5DA] flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-stone-900 block">
+                                Aadhaar Card Photo
+                              </span>
+                              <span className="text-[10px] text-stone-500">
+                                {aadhaarDocStats || "JPG / PNG (Auto-compressed to ~150KB)"}
+                              </span>
+                            </div>
+                            <label className="cursor-pointer bg-white hover:bg-stone-50 text-stone-900 font-bold text-[11px] px-3.5 py-1.5 rounded-xl border border-[#E0D8CC] shadow-xs inline-flex items-center gap-1.5 transition">
+                              <Upload className="w-3.5 h-3.5 text-orange-600" />
+                              <span>
+                                {isUploadingAadhaar
+                                  ? "Uploading..."
+                                  : aadhaarDocUrl
+                                  ? "Uploaded ✓"
+                                  : "Upload Photo"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleCompressAndUpload(f, "aadhaar");
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rider Specific Documents */}
+                      {activeRole === "rider" && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[10px] font-bold text-stone-700 block mb-1">
+                                Driving License (DL) No.
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="CG-15-2022001122"
+                                value={dlNumber}
+                                onChange={(e) => setDlNumber(e.target.value.toUpperCase())}
+                                className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-xl px-3 py-2 text-xs text-stone-900 outline-none uppercase"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-stone-700 block mb-1">
+                                Aadhaar Number
+                              </label>
+                              <input
+                                type="text"
+                                maxLength={12}
+                                placeholder="12-digit Aadhaar"
+                                value={aadhaarNumber}
+                                onChange={(e) => setAadhaarNumber(e.target.value)}
+                                className="w-full bg-[#FAF7F2] border border-[#E5DDD2] rounded-xl px-3 py-2 text-xs text-stone-900 outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          {/* DL Photo Upload */}
+                          <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#EDE5DA] flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-stone-900 block">
+                                Driving License Photo
+                              </span>
+                              <span className="text-[10px] text-stone-500">
+                                {dlDocStats || "JPG / PNG (Auto-compressed to ~150KB)"}
+                              </span>
+                            </div>
+                            <label className="cursor-pointer bg-white hover:bg-stone-50 text-stone-900 font-bold text-[11px] px-3.5 py-1.5 rounded-xl border border-[#E0D8CC] shadow-xs inline-flex items-center gap-1.5 transition">
+                              <Upload className="w-3.5 h-3.5 text-orange-600" />
+                              <span>
+                                {isUploadingDl
+                                  ? "Uploading..."
+                                  : dlDocUrl
+                                  ? "Uploaded ✓"
+                                  : "Upload Photo"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleCompressAndUpload(f, "dl");
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Navigation buttons for Step 2 */}
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setRegStep(1)}
+                          className="py-3 px-4 rounded-2xl border border-[#E0D8CC] bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center gap-1.5 transition duration-150 cursor-pointer shadow-xs"
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                          <span>Back</span>
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="flex-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 text-white font-black text-xs py-3.5 px-4 rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Submitting Application to Admin...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Submit Application for Approval</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </form>
+
+                {/* Footer Switch Link */}
+                <div className="text-center pt-2 border-t border-[#EDE5DA]">
+                  <p className="text-xs text-stone-500">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("login")}
+                      className="font-black text-orange-600 hover:text-orange-700 underline underline-offset-4 cursor-pointer"
+                    >
+                      Sign in here
+                    </button>
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-900">
-        © 2026 AmbiBites Technologies • Zero-Egress Cloudflare R2 & Brevo Integration • Ambikapur, Surguja (CG)
+      <footer className="py-4 text-center text-xs text-stone-400 border-t border-[#EDE6DC]">
+        © 2026 zuppo Technologies • Fast Food Delivery Network • Powered by Cloudflare & Brevo
       </footer>
     </div>
   );
