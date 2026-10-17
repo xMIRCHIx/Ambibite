@@ -36,6 +36,7 @@ import {
   LogOut,
   Lock,
 } from "lucide-react";
+import { compressImage } from "@/lib/imageCompression";
 
 interface IncomingOrder {
   id: string;
@@ -443,14 +444,22 @@ export default function RestaurantPartnerHub() {
     setDishAddons((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // Upload Dish Photos
+  // Upload Dish Photos with Auto-Compression
   const handleDishUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setDishUploading(true);
     try {
       const fd = new FormData();
-      Array.from(files).forEach((file) => fd.append("files", file));
+      // Compress each dish photo client-side before sending to Cloudflare R2
+      for (const file of Array.from(files)) {
+        const compressed = await compressImage(file, {
+          maxWidth: 1600,
+          maxHeight: 1600,
+          quality: 0.85,
+        });
+        fd.append("files", compressed.file);
+      }
       fd.append("folder", "food");
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
@@ -458,7 +467,7 @@ export default function RestaurantPartnerHub() {
       if (data.success && (data.urls || data.url)) {
         const newUrls = data.urls || [data.url];
         setDishImages((prev) => [...prev, ...newUrls]);
-        showToast(`✅ ${newUrls.length} photo(s) uploaded to Cloudflare R2!`);
+        showToast(`✅ ${newUrls.length} food photo(s) auto-compressed & uploaded to Cloudflare!`);
       } else {
         alert("Upload failed: " + (data.error || "Unknown"));
       }
@@ -540,20 +549,25 @@ export default function RestaurantPartnerHub() {
     }
   };
 
-  // Upload Kitchen Banner
+  // Upload Kitchen Banner with Auto-Compression
   const handleKitchenBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploadingKitchenBanner(true);
     try {
+      const compressed = await compressImage(file, {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+      });
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressed.file);
       fd.append("folder", "restaurants");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success && data.url) {
         setEditKitchenBanner(data.url);
-        showToast("Kitchen banner uploaded to Cloudflare R2!");
+        showToast("Kitchen banner auto-compressed & uploaded to Cloudflare R2!");
       }
     } catch (err: any) {
       alert("Upload failed: " + err.message);
