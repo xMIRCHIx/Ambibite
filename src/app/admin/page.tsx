@@ -31,6 +31,8 @@ import {
   Plus,
   Utensils,
   Image as ImageIcon,
+  FileCheck,
+  Eye,
 } from "lucide-react";
 
 export interface LiveOrderData {
@@ -53,7 +55,7 @@ export interface LiveOrderData {
 }
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "restaurants" | "categories" | "riders" | "payouts">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "restaurants" | "categories" | "verifications" | "riders" | "payouts">("dashboard");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [liveOrders, setLiveOrders] = useState<LiveOrderData[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -109,6 +111,13 @@ export default function AdminDashboard() {
   const [catFormName, setCatFormName] = useState("");
   const [catFormImg, setCatFormImg] = useState("");
   const [isUploadingCatImg, setIsUploadingCatImg] = useState(false);
+
+  // State: KYC & Partner Verifications
+  const [verificationKitchens, setVerificationKitchens] = useState<any[]>([]);
+  const [verificationRiders, setVerificationRiders] = useState<any[]>([]);
+  const [isLoadingVerifications, setIsLoadingVerifications] = useState(false);
+  const [verificationFilter, setVerificationFilter] = useState<"pending" | "all">("pending");
+  const [zoomedDoc, setZoomedDoc] = useState<{ title: string; url: string } | null>(null);
 
   // State: Riders
   const [riders, setRiders] = useState([
@@ -232,11 +241,59 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchVerifications = async () => {
+    setIsLoadingVerifications(true);
+    try {
+      const res = await fetch("/api/admin/verifications");
+      const data = await res.json();
+      if (data.success) {
+        setVerificationKitchens(data.kitchens || []);
+        setVerificationRiders(data.riders || []);
+      }
+    } catch (e) {
+      console.warn("Error fetching verifications:", e);
+    } finally {
+      setIsLoadingVerifications(false);
+    }
+  };
+
+  const handleActionVerification = async (
+    type: "partner" | "rider",
+    id: string,
+    action: "approve" | "reject"
+  ) => {
+    let rejectReason = "";
+    if (action === "reject") {
+      const input = prompt("Please provide reason for rejection (sent to partner):");
+      if (input === null) return;
+      rejectReason = input.trim() || "Documents need re-upload";
+    }
+
+    try {
+      const res = await fetch("/api/admin/verifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id, action, rejectReason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        fetchVerifications();
+        fetchRestaurants();
+      } else {
+        showToast(data.error || "Action failed");
+      }
+    } catch (e: any) {
+      showToast("Verification error: " + e.message);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchRestaurants();
     fetchMenuItems();
     fetchCategories();
+    fetchVerifications();
     const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -474,9 +531,19 @@ export default function AdminDashboard() {
   };
 
   const liveOrdersCount = liveOrders.filter((o) => o.status !== "delivered").length;
+  const pendingApprovalsCount =
+    verificationKitchens.filter((k) => k.isBlocked).length +
+    verificationRiders.filter((r) => r.status === "pending_verification").length;
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Live Orders", icon: ShoppingBag, badge: `${liveOrdersCount} Live` },
+    {
+      id: "verifications",
+      label: "KYC & Approvals",
+      icon: FileCheck,
+      badge: pendingApprovalsCount > 0 ? `${pendingApprovalsCount} Pending` : undefined,
+    },
     { id: "restaurants", label: "Restaurants", icon: Store, count: `${restaurants.length}` },
     { id: "categories", label: "Food Categories", icon: Utensils, count: `${categories.length}` },
     { id: "riders", label: "Rider Fleet", icon: Bike, count: `${riders.filter((r) => r.isOnline).length} Online` },
@@ -1231,6 +1298,296 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* TAB: KYC & ONBOARDING APPROVALS */}
+          {activeTab === "verifications" && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                    <FileCheck className="w-6 h-6 text-orange-500" />
+                    <span>KYC Onboarding & Verification Station</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Review incoming restaurant partners and rider applications in Ambikapur. Verify FSSAI, PAN, Aadhaar, and Driving Licenses before granting live access.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVerificationFilter(verificationFilter === "pending" ? "all" : "pending")}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition border ${
+                      verificationFilter === "pending"
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:text-white"
+                    }`}
+                  >
+                    {verificationFilter === "pending" ? "Showing Pending Only" : "Showing All Applications"}
+                  </button>
+                  <button
+                    onClick={fetchVerifications}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="Refresh verifications"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 1. RESTAURANT PARTNERS KYC SECTION */}
+              <div className="bg-slate-950 rounded-3xl p-6 border border-slate-800 space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-5 h-5 text-orange-500" />
+                    <h3 className="text-base font-black text-white">Restaurant Kitchen Applications</h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400">
+                    {verificationKitchens.filter((k) => (verificationFilter === "pending" ? k.isBlocked : true)).length} Kitchens Listed
+                  </span>
+                </div>
+
+                {verificationKitchens.filter((k) => (verificationFilter === "pending" ? k.isBlocked : true)).length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto" />
+                    <p className="text-sm font-bold text-slate-300">No Pending Kitchen Applications</p>
+                    <p className="text-xs text-slate-500">All registered restaurants in Ambikapur are verified and active.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {verificationKitchens
+                      .filter((k) => (verificationFilter === "pending" ? k.isBlocked : true))
+                      .map((k) => (
+                        <div
+                          key={k.id}
+                          className="bg-slate-900/90 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition space-y-4"
+                        >
+                          {/* Top Row: Basic Info */}
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-2xl bg-orange-600/20 border border-orange-500/30 text-orange-400 font-black text-base flex items-center justify-center shrink-0">
+                                {k.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-black text-base text-white">{k.name}</h4>
+                                  <span
+                                    className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                      k.isBlocked
+                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                    }`}
+                                  >
+                                    {k.isBlocked ? "Pending Verification" : "Active & Live"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                  {k.area} • {k.cuisine} • Owner: <strong className="text-slate-300">{k.ownerName}</strong> ({k.phone}) • Email: <span className="text-slate-400 font-mono">{k.ownerEmail}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2">
+                              {k.isBlocked ? (
+                                <>
+                                  <button
+                                    onClick={() => handleActionVerification("partner", k.id, "approve")}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                    <span>Approve & Activate</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleActionVerification("partner", k.id, "reject")}
+                                    className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs px-3.5 py-2 rounded-xl transition"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleActionVerification("partner", k.id, "reject")}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-700 transition"
+                                >
+                                  Deactivate
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Documents Row */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-800/80 text-xs">
+                            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                              <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">FSSAI License</span>
+                              <strong className="text-white text-xs block font-mono mt-0.5">{k.fssaiNumber || "Not Provided"}</strong>
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                              <div>
+                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">PAN Card</span>
+                                <strong className="text-white text-xs block font-mono mt-0.5">{k.panNumber || "Not Provided"}</strong>
+                              </div>
+                              {k.panDocUrl ? (
+                                <button
+                                  onClick={() => setZoomedDoc({ title: `${k.name} - PAN Card Photo`, url: k.panDocUrl })}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-400 transition"
+                                  title="View PAN Card photo"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 italic">No Doc</span>
+                              )}
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                              <div>
+                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Aadhaar Card</span>
+                                <strong className="text-white text-xs block font-mono mt-0.5">{k.aadhaarNumber || "Not Provided"}</strong>
+                              </div>
+                              {k.aadhaarDocUrl ? (
+                                <button
+                                  onClick={() => setZoomedDoc({ title: `${k.name} - Aadhaar Card Photo`, url: k.aadhaarDocUrl })}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-400 transition"
+                                  title="View Aadhaar Card photo"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 italic">No Doc</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. RIDERS FLEET KYC SECTION */}
+              <div className="bg-slate-950 rounded-3xl p-6 border border-slate-800 space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Bike className="w-5 h-5 text-orange-500" />
+                    <h3 className="text-base font-black text-white">Rider Fleet Applications</h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400">
+                    {verificationRiders.filter((r) => (verificationFilter === "pending" ? r.status === "pending_verification" : true)).length} Riders Registered
+                  </span>
+                </div>
+
+                {verificationRiders.filter((r) => (verificationFilter === "pending" ? r.status === "pending_verification" : true)).length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto" />
+                    <p className="text-sm font-bold text-slate-300">No Pending Rider Applications</p>
+                    <p className="text-xs text-slate-500">All riders in Ambikapur fleet are verified.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {verificationRiders
+                      .filter((r) => (verificationFilter === "pending" ? r.status === "pending_verification" : true))
+                      .map((r) => (
+                        <div
+                          key={r.id}
+                          className="bg-slate-900/90 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition space-y-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 font-black text-base flex items-center justify-center shrink-0">
+                                {r.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-black text-base text-white">{r.name}</h4>
+                                  <span
+                                    className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                      r.status === "pending_verification"
+                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                    }`}
+                                  >
+                                    {r.status === "pending_verification" ? "Pending Review" : "Active Fleet"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                  Vehicle: <strong className="text-slate-300">{r.vehicle}</strong> • Mobile: <span className="text-slate-300">{r.phone}</span> • Email: <span className="font-mono text-slate-400">{r.email}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {r.status === "pending_verification" ? (
+                                <>
+                                  <button
+                                    onClick={() => handleActionVerification("rider", r.id, "approve")}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                    <span>Approve & Grant Fleet</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleActionVerification("rider", r.id, "reject")}
+                                    className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs px-3.5 py-2 rounded-xl transition"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleActionVerification("rider", r.id, "reject")}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-700 transition"
+                                >
+                                  Deactivate
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Documents Row */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80 text-xs">
+                            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                              <div>
+                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Driving License (DL)</span>
+                                <strong className="text-white text-xs block font-mono mt-0.5">{r.dlNumber || "Not Provided"}</strong>
+                              </div>
+                              {r.dlDocUrl ? (
+                                <button
+                                  onClick={() => setZoomedDoc({ title: `${r.name} - Driving License`, url: r.dlDocUrl })}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-400 transition"
+                                  title="View Driving License"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 italic">No Doc</span>
+                              )}
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                              <div>
+                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Aadhaar Card</span>
+                                <strong className="text-white text-xs block font-mono mt-0.5">{r.aadhaarNumber || "Not Provided"}</strong>
+                              </div>
+                              {r.aadhaarDocUrl ? (
+                                <button
+                                  onClick={() => setZoomedDoc({ title: `${r.name} - Aadhaar Card`, url: r.aadhaarDocUrl })}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-400 transition"
+                                  title="View Aadhaar Card"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 italic">No Doc</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB 5: WEEKLY PAYOUTS (BLUEPRINT COMPLIANT) */}
           {activeTab === "payouts" && (
             <div className="space-y-6 animate-in fade-in duration-300">
@@ -1776,6 +2133,47 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: DOCUMENT PHOTO ZOOM */}
+      {zoomedDoc && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-orange-500" />
+                <span>{zoomedDoc.title}</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <a
+                  href={zoomedDoc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                  title="Open full resolution in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+                <button
+                  onClick={() => setZoomedDoc(null)}
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950">
+              <img
+                src={zoomedDoc.url}
+                alt={zoomedDoc.title}
+                className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-lg border border-slate-800"
+              />
+            </div>
+            <div className="p-3 bg-slate-900 border-t border-slate-800 text-center text-xs text-slate-400">
+              Verified on Cloudflare R2 Zero-Egress CDN
+            </div>
           </div>
         </div>
       )}
