@@ -13,7 +13,7 @@ export async function sendEmailViaBrevo({
 }: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL || "zuuppo@gmail.com";
-  const senderName = process.env.BREVO_SENDER_NAME || "AmbiBites Ambikapur";
+  const senderName = process.env.BREVO_SENDER_NAME || "zuppo";
 
   if (!apiKey) {
     console.error("Brevo API Notice: Missing BREVO_API_KEY in environment variables.");
