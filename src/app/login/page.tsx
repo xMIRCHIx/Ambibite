@@ -369,21 +369,21 @@ export default function LoginPage() {
     }
   };
 
-  // Quick Demo Kitchen Logins
-  const quickLoginKitchen = (user: string, pass: string) => {
+  // Quick Demo Logins for Partner, Rider, Admin
+  const quickDemoLogin = (role: RoleType, user: string, pass: string, targetPath: string) => {
     setUsername(user);
     setPassword(pass);
     setLoading(true);
     fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "partner", username: user, password: pass }),
+      body: JSON.stringify({ role, username: user, password: pass }),
     })
       .then((r) => r.json())
       .then((d) => {
         if (d.success) {
-          setSuccessMsg(`Logged in to ${d.user.restaurantName}!`);
-          setTimeout(() => router.push("/partner"), 600);
+          setSuccessMsg(`Welcome, ${d.user.name}!`);
+          setTimeout(() => router.push(targetPath), 600);
         } else {
           setErrorMsg(d.error || "Login failed");
           setLoading(false);
@@ -664,7 +664,7 @@ export default function LoginPage() {
                     )}
                   </button>
 
-                  {/* Quick Demo Kitchen Logins */}
+                  {/* Quick Demo One-Click Chips */}
                   {activeRole === "partner" && (
                     <div className="pt-3 border-t border-[#EDE5DA] space-y-2">
                       <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider">
@@ -673,7 +673,7 @@ export default function LoginPage() {
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <button
                           type="button"
-                          onClick={() => quickLoginKitchen("royal", "royal123")}
+                          onClick={() => quickDemoLogin("partner", "royal", "royal123", "/partner")}
                           className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white"
                         >
                           <strong className="text-stone-900 block font-bold">The Royal Kitchen</strong>
@@ -681,13 +681,55 @@ export default function LoginPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => quickLoginKitchen("burger", "burger123")}
+                          onClick={() => quickDemoLogin("partner", "burger", "burger123", "/partner")}
                           className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white"
                         >
                           <strong className="text-stone-900 block font-bold">Burger Hub & Cafe</strong>
                           <span className="text-stone-400 text-[10px]">burger / burger123</span>
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {activeRole === "rider" && (
+                    <div className="pt-3 border-t border-[#EDE5DA] space-y-2">
+                      <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider">
+                        Demo Rider One-Click Login:
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => quickDemoLogin("rider", "rider", "rider123", "/rider")}
+                        className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white flex items-center justify-between"
+                      >
+                        <div>
+                          <strong className="text-stone-900 block font-bold text-xs">Ramesh Kumar (Splendor Fleet)</strong>
+                          <span className="text-stone-400 text-[10px]">Username: rider / rider123</span>
+                        </div>
+                        <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200">
+                          1-Click Login ➔
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {activeRole === "admin" && (
+                    <div className="pt-3 border-t border-[#EDE5DA] space-y-2">
+                      <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider">
+                        Super Admin One-Click Login:
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => quickDemoLogin("admin", "admin", "admin123", "/admin")}
+                        className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E5DDD2] hover:border-orange-400 text-left transition duration-150 cursor-pointer hover:bg-white flex items-center justify-between"
+                      >
+                        <div>
+                          <strong className="text-stone-900 block font-bold text-xs">Aryan Gupta (Super Admin)</strong>
+                          <span className="text-stone-400 text-[10px]">Username: admin / admin123</span>
+                        </div>
+                        <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200">
+                          1-Click Login ➔
+                        </span>
+                      </button>
                     </div>
                   )}
                 </form>
