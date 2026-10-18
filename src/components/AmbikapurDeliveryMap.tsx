@@ -2,6 +2,17 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import {
+  Maximize2,
+  Minimize2,
+  X,
+  Plus,
+  Minus,
+  Navigation,
+  Store,
+  MapPin,
+  ExternalLink,
+} from "lucide-react";
 
 interface DeliveryMapProps {
   restaurantName?: string;
@@ -27,6 +38,7 @@ export default function AmbikapurDeliveryMap({
   const bikeMarkerRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [etaMinutes, setEtaMinutes] = useState(12);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Ambikapur Coordinates:
   // Gandhi Chowk (Central): 23.1235, 83.1930
@@ -210,40 +222,172 @@ export default function AmbikapurDeliveryMap({
     }
   }, [riderLat, riderLng]);
 
+  // Handle Fullscreen transition: resize Leaflet canvas and fit bounds
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current.invalidateSize();
+        if (isFullscreen) {
+          mapInstanceRef.current.fitBounds([restaurantCoord, customerCoord], {
+            padding: [60, 60],
+          });
+        }
+      }, 150);
+    }
+  }, [isFullscreen]);
+
   const isRealGps = Boolean(riderLat && riderLng);
 
   return (
     <div
-      className="relative w-full rounded-2xl overflow-hidden border border-[#EDE5DA] bg-[#FAF7F2] shadow-xs"
-      style={{ height, minHeight: height }}
+      className={`transition-all duration-300 ${
+        isFullscreen
+          ? "fixed inset-0 z-[9999] w-screen h-screen bg-stone-900 rounded-none shadow-2xl flex flex-col"
+          : "relative w-full rounded-2xl overflow-hidden border border-[#EDE5DA] bg-[#FAF7F2] shadow-xs group"
+      }`}
+      style={
+        isFullscreen
+          ? { height: "100vh", width: "100vw" }
+          : { height, minHeight: height }
+      }
     >
       {/* Actual Leaflet Map Canvas */}
       <div
         ref={mapContainerRef}
-        className="w-full h-full z-0"
-        style={{ height: "100%", width: "100%", minHeight: height }}
+        onClick={() => {
+          if (!isFullscreen) setIsFullscreen(true);
+        }}
+        className="w-full h-full z-0 cursor-pointer"
+        style={{
+          height: "100%",
+          width: "100%",
+          minHeight: isFullscreen ? "100vh" : height,
+        }}
       />
 
-      {/* Floating Status Overlay Badge */}
-      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-200 text-xs font-bold shadow-md flex items-center gap-2 z-10 pointer-events-none">
-        <span
-          className={`w-2.5 h-2.5 rounded-full ${
-            isRealGps ? "bg-emerald-500 animate-ping" : "bg-emerald-500 animate-pulse"
-          }`}
-        />
-        <span className="text-stone-800">
-          {isRealGps
-            ? "🛰️ Live GPS Active • Real-time Rider Location"
-            : mode === "customer"
-            ? `Rider is on the way • ~${etaMinutes} mins away (1.4 km)`
-            : `Delivery to ${customerArea.split(",")[0]} • 1.4 km`}
-        </span>
-      </div>
+      {/* NORMAL EMBEDDED MODE OVERLAYS */}
+      {!isFullscreen && (
+        <>
+          {/* Floating Status Overlay Badge (Top Left) */}
+          <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-200 text-xs font-bold shadow-md flex items-center gap-2 z-10 pointer-events-none">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                isRealGps ? "bg-emerald-500 animate-ping" : "bg-emerald-500 animate-pulse"
+              }`}
+            />
+            <span className="text-stone-800">
+              {isRealGps
+                ? "🛰️ Live GPS Active • Real-time Location"
+                : mode === "customer"
+                ? `Rider en route • ~${etaMinutes} mins away (1.4 km)`
+                : `Drop: ${customerArea.split(",")[0]}`}
+            </span>
+          </div>
 
-      {/* Mode Indicator Overlay Badge (Bottom Right) */}
-      <div className="absolute bottom-2.5 right-3 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] font-black text-white shadow-xs z-10 pointer-events-none">
-        Ambikapur Live GPS • OpenStreetMap
-      </div>
+          {/* Expand Fullscreen Button (Top Right) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFullscreen(true);
+            }}
+            className="absolute top-3 right-3 bg-white/95 hover:bg-white text-stone-900 text-[11px] font-black px-3 py-1.5 rounded-full border border-stone-200 shadow-md flex items-center gap-1.5 z-20 cursor-pointer transition active:scale-95 hover:shadow-lg"
+            title="Click to view full screen interactive map"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-orange-600" />
+            <span>Bada Map Dekhein</span>
+          </button>
+
+          {/* Mode Indicator Overlay Badge (Bottom Right) */}
+          <div className="absolute bottom-2.5 right-3 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] font-black text-white shadow-xs z-10 pointer-events-none">
+            Ambikapur Live GPS • Tap to Expand ⛶
+          </div>
+        </>
+      )}
+
+      {/* FULLSCREEN EXPANDED MODE OVERLAYS */}
+      {isFullscreen && (
+        <>
+          {/* Top Floating App Bar */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-auto">
+            <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-2xl border border-stone-200 text-xs font-black shadow-xl flex items-center gap-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  isRealGps ? "bg-emerald-500 animate-ping" : "bg-emerald-500 animate-pulse"
+                }`}
+              />
+              <span className="text-stone-900">
+                {isRealGps ? "🛰️ Live GPS Streaming" : "Ambikapur Real Road Route"} • ~{etaMinutes} mins
+              </span>
+            </div>
+
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="bg-stone-900 hover:bg-black text-white px-4 py-2 rounded-2xl border border-stone-700 shadow-xl flex items-center gap-1.5 text-xs font-black transition cursor-pointer active:scale-95"
+            >
+              <X className="w-4 h-4 text-orange-400" />
+              <span>Chhota Karein (Exit)</span>
+            </button>
+          </div>
+
+          {/* Right Floating Map Controls (Zoom In, Zoom Out, Center Rider) */}
+          <div className="absolute right-4 top-24 flex flex-col gap-2 z-20 pointer-events-auto">
+            <button
+              onClick={() => mapInstanceRef.current?.zoomIn()}
+              className="w-11 h-11 rounded-2xl bg-white/95 shadow-xl border border-stone-200 flex items-center justify-center text-stone-800 font-black hover:bg-white active:scale-95 cursor-pointer"
+              title="Zoom In"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => mapInstanceRef.current?.zoomOut()}
+              className="w-11 h-11 rounded-2xl bg-white/95 shadow-xl border border-stone-200 flex items-center justify-center text-stone-800 font-black hover:bg-white active:scale-95 cursor-pointer"
+              title="Zoom Out"
+            >
+              <Minus className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                const pos = riderLat && riderLng ? [riderLat, riderLng] : realRoadRoute[18];
+                mapInstanceRef.current?.panTo(pos, { animate: true });
+              }}
+              className="w-11 h-11 rounded-2xl bg-orange-600 text-white shadow-xl flex items-center justify-center hover:bg-orange-500 active:scale-95 cursor-pointer"
+              title="Center on Rider"
+            >
+              <Navigation className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Bottom Floating Delivery Card */}
+          <div className="absolute bottom-6 left-4 right-4 max-w-lg mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-4 border border-stone-200 shadow-2xl z-20 pointer-events-auto space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-black text-stone-900">
+                {orderNumber} • Ambikapur Live Delivery Route
+              </span>
+              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                {etaMinutes} Mins ETA
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 bg-stone-50 rounded-2xl border border-stone-100 flex items-center gap-2">
+                <Store className="w-4 h-4 text-orange-600 shrink-0" />
+                <div className="truncate">
+                  <strong className="block text-stone-900 font-bold truncate">{restaurantName}</strong>
+                  <span className="text-[10px] text-stone-500">Gandhi Chowk Pickup</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-stone-50 rounded-2xl border border-stone-100 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="truncate">
+                  <strong className="block text-stone-900 font-bold truncate">Drop Location</strong>
+                  <span className="text-[10px] text-stone-500 truncate">{customerArea}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
