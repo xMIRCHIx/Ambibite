@@ -99,13 +99,14 @@ export default function RiderDashboard() {
   const lastBroadcastRef = useRef<{ lat: number; lng: number } | null>(null);
   const [simIndex, setSimIndex] = useState(0);
 
-  // Ambikapur road corridor coordinates for laptop demo & fallback
+  // Ambikapur road corridor coordinates along actual streets (OSRM)
   const ambikapurCorridor: [number, number][] = [
-    [23.1235, 83.1930], // Gandhi Chowk (Pickup)
-    [23.1220, 83.1955], // Clock Tower Road
-    [23.1200, 83.1980], // Hospital Road Junction
-    [23.1175, 83.2015], // Ring Road turn
-    [23.1155, 83.2045], // Kedarpur (Customer Drop)
+    [23.12341, 83.1933],  // 1. Gandhi Chowk (Pickup)
+    [23.12437, 83.19503], // 2. Main Market Road
+    [23.12295, 83.19799], // 3. Clock Tower Junction
+    [23.12091, 83.20262], // 4. Hospital Road
+    [23.11801, 83.20313], // 5. Ring Road South
+    [23.11559, 83.20455], // 6. Kedarpur (Customer Drop)
   ];
 
   // Automatic GPS Watcher (Requests permission automatically on load)

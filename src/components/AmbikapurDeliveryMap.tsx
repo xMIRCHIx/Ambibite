@@ -31,15 +31,54 @@ export default function AmbikapurDeliveryMap({
   // Ambikapur Coordinates:
   // Gandhi Chowk (Central): 23.1235, 83.1930
   // Kedarpur (Residential): 23.1155, 83.2045
-  const restaurantCoord: [number, number] = [23.1235, 83.1930];
-  const customerCoord: [number, number] = [23.1155, 83.2045];
+  const restaurantCoord: [number, number] = [23.12341, 83.1933];
+  const customerCoord: [number, number] = [23.11559, 83.20455];
 
-  const routeWaypoints: [number, number][] = [
-    restaurantCoord,
-    [23.1220, 83.1955],
-    [23.1200, 83.1980],
-    [23.1175, 83.2015],
-    customerCoord,
+  // Exact 43 road curve waypoints along Ambikapur streets (OSRM Engine)
+  const realRoadRoute: [number, number][] = [
+    [23.12341, 83.1933],
+    [23.12391, 83.19348],
+    [23.12396, 83.19347],
+    [23.12405, 83.1935],
+    [23.12469, 83.19375],
+    [23.12492, 83.19389],
+    [23.12437, 83.19503],
+    [23.12431, 83.19516],
+    [23.12411, 83.19553],
+    [23.12332, 83.1972],
+    [23.12325, 83.19729],
+    [23.12295, 83.19799],
+    [23.12247, 83.19906],
+    [23.12231, 83.19947],
+    [23.12223, 83.19968],
+    [23.1218, 83.20076],
+    [23.12177, 83.20086],
+    [23.12152, 83.20164],
+    [23.12091, 83.20262],
+    [23.12041, 83.20352],
+    [23.12034, 83.20364],
+    [23.11958, 83.20335],
+    [23.11935, 83.2033],
+    [23.11888, 83.20321],
+    [23.11867, 83.2032],
+    [23.11862, 83.20318],
+    [23.11801, 83.20313],
+    [23.11787, 83.2031],
+    [23.11782, 83.20312],
+    [23.11757, 83.20313],
+    [23.11728, 83.20303],
+    [23.1169, 83.2028],
+    [23.11698, 83.2026],
+    [23.11661, 83.20242],
+    [23.1164, 83.20234],
+    [23.11626, 83.20274],
+    [23.11612, 83.20319],
+    [23.11612, 83.20329],
+    [23.11614, 83.20339],
+    [23.11612, 83.20346],
+    [23.11591, 83.20394],
+    [23.11571, 83.20428],
+    [23.11559, 83.20455],
   ];
 
   useEffect(() => {
@@ -60,41 +99,44 @@ export default function AmbikapurDeliveryMap({
         }
 
         const map = L.map(mapContainerRef.current, {
-          center: [23.1195, 83.1987],
-          zoom: 14,
+          center: [23.1200, 83.1985],
+          zoom: 15,
           zoomControl: false,
           attributionControl: false,
           scrollWheelZoom: false,
         });
 
-        // High reliability OpenStreetMap standard tile layer
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          subdomains: ["a", "b", "c"],
-        }).addTo(map);
+        // Clean CartoDB Voyager tiles - Beautiful English labels, no foreign scripts
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+          {
+            maxZoom: 19,
+            subdomains: ["a", "b", "c", "d"],
+          }
+        ).addTo(map);
 
-        // Marker 1: Restaurant Pin
+        // Marker 1: Restaurant Pin (Gandhi Chowk)
         const restIcon = L.divIcon({
           className: "leaflet-custom-div",
-          html: `<div style="background-color:#ea580c; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(234,88,12,0.5); display:flex; align-items:center; justify-content:center; font-size:16px;">🏪</div>`,
+          html: `<div style="background-color:#ea580c; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(234,88,12,0.4); display:flex; align-items:center; justify-content:center; font-size:16px;">🏪</div>`,
           iconSize: [34, 34],
           iconAnchor: [17, 34],
         });
 
-        // Marker 2: Customer House Pin
+        // Marker 2: Customer House Pin (Kedarpur)
         const customerIcon = L.divIcon({
           className: "leaflet-custom-div",
-          html: `<div style="background-color:#16a34a; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(22,163,74,0.5); display:flex; align-items:center; justify-content:center; font-size:16px;">🏠</div>`,
+          html: `<div style="background-color:#16a34a; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(22,163,74,0.4); display:flex; align-items:center; justify-content:center; font-size:16px;">🏠</div>`,
           iconSize: [34, 34],
           iconAnchor: [17, 34],
         });
 
-        // Marker 3: Moving Rider Bike
+        // Marker 3: Rider Bike Pin
         const bikeIcon = L.divIcon({
           className: "leaflet-custom-div",
-          html: `<div style="background-color:#0f172a; width:36px; height:36px; border-radius:50%; border:3px solid #ea580c; box-shadow:0 6px 20px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:17px;">🛵</div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
+          html: `<div style="background-color:#0f172a; width:38px; height:38px; border-radius:50%; border:3px solid #f97316; box-shadow:0 8px 24px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:18px;">🛵</div>`,
+          iconSize: [38, 38],
+          iconAnchor: [19, 19],
         });
 
         L.marker(restaurantCoord, { icon: restIcon })
@@ -105,24 +147,31 @@ export default function AmbikapurDeliveryMap({
           .addTo(map)
           .bindPopup(`<b>Customer Drop Location</b><br>${customerArea}`);
 
-        // Ambikapur road corridor polyline
-        L.polyline(routeWaypoints, {
+        // Real road polyline along Ambikapur streets
+        L.polyline(realRoadRoute, {
           color: "#ea580c",
-          weight: 4,
-          opacity: 0.85,
-          dashArray: "8, 8",
+          weight: 5,
+          opacity: 0.9,
+          lineJoin: "round",
+          lineCap: "round",
         }).addTo(map);
 
-        // Add Bike Marker & smoothly glide along the road
+        // Position bike at real rider position OR mid-route road position
         const initialBikePos: [number, number] =
-          riderLat && riderLng ? [riderLat, riderLng] : [23.1200, 83.1980];
+          riderLat && riderLng ? [riderLat, riderLng] : realRoadRoute[18];
         const bikeMarker = L.marker(initialBikePos, { icon: bikeIcon }).addTo(map);
         bikeMarkerRef.current = bikeMarker;
 
         mapInstanceRef.current = map;
         setMapLoaded(true);
 
-        // Crucial: Leaflet requires invalidateSize() after CSS paint
+        // Fit bounds to keep both restaurant & customer in frame
+        map.fitBounds([restaurantCoord, customerCoord], {
+          padding: [30, 30],
+          maxZoom: 15,
+        });
+
+        // Leaflet invalidateSize after container paint
         setTimeout(() => {
           if (isMounted && mapInstanceRef.current) {
             mapInstanceRef.current.invalidateSize();
@@ -134,22 +183,6 @@ export default function AmbikapurDeliveryMap({
             mapInstanceRef.current.invalidateSize();
           }
         }, 500);
-
-        // If real GPS is not yet streaming, smoothly animate fallback along route
-        let step = 1;
-        const bikeInterval = setInterval(() => {
-          if (!isMounted) return;
-          // Only animate if real GPS coords are not provided
-          if (!riderLat || !riderLng) {
-            step = (step + 1) % routeWaypoints.length;
-            bikeMarker.setLatLng(routeWaypoints[step]);
-            setEtaMinutes((prev) => (prev <= 2 ? 14 : prev - 1));
-          }
-        }, 3500);
-
-        return () => {
-          clearInterval(bikeInterval);
-        };
       } catch (err) {
         console.warn("Leaflet mount notice:", err);
       }
