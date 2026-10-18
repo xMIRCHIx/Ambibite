@@ -31,6 +31,9 @@ export interface LiveOrder {
   deliveryPin: string;
   distanceKm: number;
   riderEarnings: number;
+  riderLat?: number;
+  riderLng?: number;
+  riderLocationUpdatedAt?: string;
 }
 
 // In-memory store fallback for multi-tab sync
@@ -263,7 +266,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, status, riderName, submittedPin, newPin } = body;
+    const { orderId, status, riderName, submittedPin, newPin, riderLat, riderLng } = body;
 
     if (!orderId) {
       return NextResponse.json({ success: false, error: "Missing orderId" }, { status: 400 });
@@ -302,6 +305,9 @@ export async function PATCH(req: Request) {
           ...(riderName !== undefined ? { riderName } : {}),
           ...(newPin ? { deliveryPin: String(newPin) } : {}),
           ...(status === "delivered" ? { paymentStatus: "completed" as const } : {}),
+          ...(riderLat !== undefined ? { riderLat: Number(riderLat) } : {}),
+          ...(riderLng !== undefined ? { riderLng: Number(riderLng) } : {}),
+          ...(riderLat !== undefined ? { riderLocationUpdatedAt: new Date().toISOString() } : {}),
         };
         return updatedOrder;
       }

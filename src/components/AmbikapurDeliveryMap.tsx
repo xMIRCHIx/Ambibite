@@ -9,6 +9,8 @@ interface DeliveryMapProps {
   orderNumber?: string;
   mode?: "customer" | "rider";
   height?: string;
+  riderLat?: number;
+  riderLng?: number;
 }
 
 export default function AmbikapurDeliveryMap({
@@ -17,9 +19,12 @@ export default function AmbikapurDeliveryMap({
   orderNumber = "#ZB-LIVE",
   mode = "customer",
   height = "280px",
+  riderLat,
+  riderLng,
 }: DeliveryMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
+  const bikeMarkerRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [etaMinutes, setEtaMinutes] = useState(12);
 
@@ -109,7 +114,10 @@ export default function AmbikapurDeliveryMap({
         }).addTo(map);
 
         // Add Bike Marker & smoothly glide along the road
-        const bikeMarker = L.marker([23.1200, 83.1980], { icon: bikeIcon }).addTo(map);
+        const initialBikePos: [number, number] =
+          riderLat && riderLng ? [riderLat, riderLng] : [23.1200, 83.1980];
+        const bikeMarker = L.marker(initialBikePos, { icon: bikeIcon }).addTo(map);
+        bikeMarkerRef.current = bikeMarker;
 
         mapInstanceRef.current = map;
         setMapLoaded(true);
@@ -127,13 +135,16 @@ export default function AmbikapurDeliveryMap({
           }
         }, 500);
 
-        // Smooth bike animation along route
+        // If real GPS is not yet streaming, smoothly animate fallback along route
         let step = 1;
         const bikeInterval = setInterval(() => {
           if (!isMounted) return;
-          step = (step + 1) % routeWaypoints.length;
-          bikeMarker.setLatLng(routeWaypoints[step]);
-          setEtaMinutes((prev) => (prev <= 2 ? 14 : prev - 1));
+          // Only animate if real GPS coords are not provided
+          if (!riderLat || !riderLng) {
+            step = (step + 1) % routeWaypoints.length;
+            bikeMarker.setLatLng(routeWaypoints[step]);
+            setEtaMinutes((prev) => (prev <= 2 ? 14 : prev - 1));
+          }
         }, 3500);
 
         return () => {
@@ -155,6 +166,19 @@ export default function AmbikapurDeliveryMap({
     };
   }, []);
 
+  // Update bike marker in real-time when real GPS coordinates stream in
+  useEffect(() => {
+    if (riderLat && riderLng && bikeMarkerRef.current) {
+      bikeMarkerRef.current.setLatLng([riderLat, riderLng]);
+      if (mapInstanceRef.current) {
+        // Softly pan to follow rider
+        mapInstanceRef.current.panTo([riderLat, riderLng], { animate: true, duration: 1 });
+      }
+    }
+  }, [riderLat, riderLng]);
+
+  const isRealGps = Boolean(riderLat && riderLng);
+
   return (
     <div
       className="relative w-full rounded-2xl overflow-hidden border border-[#EDE5DA] bg-[#FAF7F2] shadow-xs"
@@ -169,9 +193,15 @@ export default function AmbikapurDeliveryMap({
 
       {/* Floating Status Overlay Badge */}
       <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-200 text-xs font-bold shadow-md flex items-center gap-2 z-10 pointer-events-none">
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span
+          className={`w-2.5 h-2.5 rounded-full ${
+            isRealGps ? "bg-emerald-500 animate-ping" : "bg-emerald-500 animate-pulse"
+          }`}
+        />
         <span className="text-stone-800">
-          {mode === "customer"
+          {isRealGps
+            ? "🛰️ Live GPS Active • Real-time Rider Location"
+            : mode === "customer"
             ? `Rider is on the way • ~${etaMinutes} mins away (1.4 km)`
             : `Delivery to ${customerArea.split(",")[0]} • 1.4 km`}
         </span>

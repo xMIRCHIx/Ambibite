@@ -62,6 +62,8 @@ interface RiderOrder {
   deliveryPin: string;
   distanceKm: number;
   riderEarnings: number;
+  riderLat?: number;
+  riderLng?: number;
 }
 
 export default function RiderDashboard() {
@@ -90,6 +92,106 @@ export default function RiderDashboard() {
 
   // Acceptance Timer per order (countdown from 30s)
   const [timerSeconds, setTimerSeconds] = useState(30);
+
+  // Live GPS Tracking & Synchronization
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"active" | "simulated" | "denied">("simulated");
+  const lastBroadcastRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [simIndex, setSimIndex] = useState(0);
+
+  // Ambikapur road corridor coordinates for laptop demo & fallback
+  const ambikapurCorridor: [number, number][] = [
+    [23.1235, 83.1930], // Gandhi Chowk (Pickup)
+    [23.1220, 83.1955], // Clock Tower Road
+    [23.1200, 83.1980], // Hospital Road Junction
+    [23.1175, 83.2015], // Ring Road turn
+    [23.1155, 83.2045], // Kedarpur (Customer Drop)
+  ];
+
+  // Automatic GPS Watcher (Requests permission automatically on load)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setGpsStatus("simulated");
+      return;
+    }
+
+    if (!isOnline) return;
+
+    let watchId: number;
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(6));
+          const lng = Number(pos.coords.longitude.toFixed(6));
+          setGpsCoords({ lat, lng });
+          setGpsStatus("active");
+
+          // Broadcast to active task if moved
+          const prev = lastBroadcastRef.current;
+          if (prev && Math.abs(prev.lat - lat) < 0.0001 && Math.abs(prev.lng - lng) < 0.0001) {
+            return;
+          }
+          lastBroadcastRef.current = { lat, lng };
+
+          // Broadcast GPS to active in-transit orders
+          const activeOrder = liveOrders.find(
+            (o) => o.status === "picked_up" || o.status === "rider_assigned"
+          );
+
+          if (activeOrder) {
+            fetch("/api/orders", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: activeOrder.id,
+                riderLat: lat,
+                riderLng: lng,
+              }),
+            }).catch(() => {});
+          }
+        },
+        (err) => {
+          console.log("GPS Notice:", err.message);
+          setGpsStatus(err.code === 1 ? "denied" : "simulated");
+        },
+        { enableHighAccuracy: true, maximumAge: 4000, timeout: 10000 }
+      );
+    } catch (e) {
+      setGpsStatus("simulated");
+    }
+
+    return () => {
+      if (watchId !== undefined && navigator.geolocation?.clearWatch) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [isOnline, liveOrders]);
+
+  // Demo step mover for testing live synchronization on laptop
+  const advanceRiderLocation = async (orderId: string) => {
+    const nextIdx = (simIndex + 1) % ambikapurCorridor.length;
+    setSimIndex(nextIdx);
+    const [lat, lng] = ambikapurCorridor[nextIdx];
+    setGpsCoords({ lat, lng });
+    setGpsStatus("active");
+
+    try {
+      await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          riderLat: lat,
+          riderLng: lng,
+        }),
+      });
+      setStatusMessage(`📍 Rider moved to Waypoint ${nextIdx + 1}/5! Customer map syncing...`);
+      setTimeout(() => setStatusMessage(null), 3000);
+      fetchRiderOrders();
+    } catch (e) {
+      console.warn("Advance error:", e);
+    }
+  };
 
   // Initialize Audio
   useEffect(() => {
@@ -310,14 +412,25 @@ export default function RiderDashboard() {
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isOnline ? "bg-emerald-500 animate-pulse" : "bg-stone-300"
+                  }`}
+                />
+                <span className="text-[11px] font-bold text-stone-700">
+                  {currentRiderName}
+                </span>
+              </div>
               <span
-                className={`w-2 h-2 rounded-full ${
-                  isOnline ? "bg-emerald-500 animate-pulse" : "bg-stone-300"
+                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                  gpsStatus === "active"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
                 }`}
-              />
-              <span className="text-[11px] font-bold text-stone-700">
-                {currentRiderName}
+              >
+                {gpsStatus === "active" ? "🛰️ GPS: LIVE" : "📍 GPS: AUTO"}
               </span>
             </div>
           </div>
@@ -572,9 +685,20 @@ export default function RiderDashboard() {
                         restaurantName={order.restaurantName}
                         customerArea={order.deliveryArea}
                         orderNumber={order.orderNumber}
+                        riderLat={gpsCoords?.lat}
+                        riderLng={gpsCoords?.lng}
                         height="200px"
                       />
                     </div>
+
+                    {/* Quick Demo Mover for testing on Laptop */}
+                    <button
+                      onClick={() => advanceRiderLocation(order.id)}
+                      className="w-full py-2 px-3 rounded-xl border border-dashed border-orange-300 bg-orange-50/70 hover:bg-orange-100 text-orange-800 font-bold text-[11px] flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Bike className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Simulate Rider Step ({simIndex + 1}/5) • Syncs to Customer Screen</span>
+                    </button>
 
                     {/* Navigation External GPS Button */}
                     <a

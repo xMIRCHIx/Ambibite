@@ -54,6 +54,8 @@ interface OrderDetail {
   deliveryPin: string;
   distanceKm: number;
   riderEarnings: number;
+  riderLat?: number;
+  riderLng?: number;
 }
 
 export default function OrderTrackingPage() {
@@ -359,6 +361,8 @@ export default function OrderTrackingPage() {
             customerArea={order.deliveryArea}
             orderNumber={order.orderNumber}
             mode="customer"
+            riderLat={order.riderLat}
+            riderLng={order.riderLng}
             height="270px"
           />
 
