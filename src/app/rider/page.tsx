@@ -32,6 +32,7 @@ import {
   Flame,
   CheckCheck,
 } from "lucide-react";
+import AmbikapurDeliveryMap from "@/components/AmbikapurDeliveryMap";
 
 interface OrderItem {
   name: string;
@@ -557,7 +558,25 @@ export default function RiderDashboard() {
                       </a>
                     </div>
 
-                    {/* Navigation Button */}
+                    {/* Live OpenStreetMap Ambikapur Route */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 px-1">
+                        <span className="flex items-center gap-1.5">
+                          <Navigation className="w-3.5 h-3.5 text-orange-600" />
+                          <span>Customer Drop Route • {order.deliveryArea.split(",")[0]}</span>
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-bold">OpenStreetMap</span>
+                      </div>
+                      <AmbikapurDeliveryMap
+                        mode="rider"
+                        restaurantName={order.restaurantName}
+                        customerArea={order.deliveryArea}
+                        orderNumber={order.orderNumber}
+                        height="200px"
+                      />
+                    </div>
+
+                    {/* Navigation External GPS Button */}
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         order.deliveryArea + ", Ambikapur"
@@ -567,7 +586,7 @@ export default function RiderDashboard() {
                       className="w-full py-2.5 px-4 rounded-xl border border-[#E5DDD2] bg-white hover:bg-stone-50 text-stone-900 font-bold text-xs flex items-center justify-center gap-2 transition"
                     >
                       <Navigation className="w-4 h-4 text-orange-600" />
-                      <span>Navigate via GPS (OpenStreetMap / Google)</span>
+                      <span>Open in Google Maps App (Turn-by-turn Voice)</span>
                     </a>
 
                     {/* Big Action: Open Doorstep PIN Modal */}
@@ -581,13 +600,27 @@ export default function RiderDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="bg-white rounded-3xl p-8 border border-[#EDE5DA] text-center space-y-2">
-                  <p className="text-xs text-stone-500">No active delivery in transit right now.</p>
+                <div className="bg-white rounded-3xl p-6 border border-[#EDE5DA] text-center space-y-4 shadow-xs">
+                  <div className="rounded-2xl overflow-hidden border border-[#EDE5DA]">
+                    <AmbikapurDeliveryMap
+                      mode="rider"
+                      restaurantName="The Royal Kitchen"
+                      customerArea="Kedarpur Residential Zone, Ambikapur"
+                      orderNumber="READY"
+                      height="180px"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-stone-900 text-sm">No Active Delivery in Transit</h4>
+                    <p className="text-xs text-stone-500 mt-1">
+                      You have not accepted an order yet. Switch to the <strong>Radar</strong> tab to accept pending food deliveries!
+                    </p>
+                  </div>
                   <button
                     onClick={() => setActiveTab("radar")}
-                    className="text-xs font-black text-orange-600 hover:underline cursor-pointer"
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 text-white font-black text-xs shadow-md transition cursor-pointer"
                   >
-                    View Radar Orders ➔
+                    View & Accept Radar Orders ({radarOrders.length}) ➔
                   </button>
                 </div>
               )}

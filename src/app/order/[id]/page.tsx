@@ -24,6 +24,7 @@ import {
   Home,
   Navigation,
 } from "lucide-react";
+import AmbikapurDeliveryMap from "@/components/AmbikapurDeliveryMap";
 
 interface OrderItem {
   name: string;
@@ -64,11 +65,6 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [isRegeneratingPin, setIsRegeneratingPin] = useState(false);
   const [pinFeedback, setPinFeedback] = useState<string | null>(null);
-
-  // Map container reference
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const leafletMapRef = useRef<any>(null);
-  const bikeMarkerRef = useRef<any>(null);
 
   // Poll order status every 3 seconds for live updates
   const fetchOrder = async () => {
@@ -125,105 +121,6 @@ export default function OrderTrackingPage() {
       setIsRegeneratingPin(false);
     }
   };
-
-  // Initialize Interactive Leaflet Map for Ambikapur
-  useEffect(() => {
-    if (typeof window === "undefined" || !mapContainerRef.current) return;
-
-    let isMounted = true;
-
-    // Dynamically load Leaflet client-side
-    import("leaflet").then((L) => {
-      if (!isMounted || !mapContainerRef.current) return;
-
-      // If map already initialized, skip recreate
-      if (leafletMapRef.current) return;
-
-      // Ambikapur Coordinates (Gandhi Chowk ➔ Kedarpur)
-      const restaurantPos: [number, number] = [23.1235, 83.1930]; // Gandhi Chowk
-      const customerPos: [number, number] = [23.1155, 83.2045]; // Kedarpur
-
-      // Initialize map instance
-      const map = L.map(mapContainerRef.current, {
-        center: [23.1195, 83.1987],
-        zoom: 14,
-        zoomControl: false,
-        attributionControl: false,
-      });
-
-      // CartoDB Positron / OSM lightweight tiles
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19,
-      }).addTo(map);
-
-      // Custom HTML Icons
-      const restaurantIcon = L.divIcon({
-        className: "custom-pin",
-        html: `<div style="background-color:#ea580c; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(234,88,12,0.4); display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🏪</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
-      });
-
-      const customerIcon = L.divIcon({
-        className: "custom-pin",
-        html: `<div style="background-color:#16a34a; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 6px 16px rgba(22,163,74,0.4); display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🏠</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
-      });
-
-      const bikeIcon = L.divIcon({
-        className: "custom-pin",
-        html: `<div style="background-color:#0f172a; width:36px; height:36px; border-radius:50%; border:3px solid #ea580c; box-shadow:0 6px 20px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; color:white; font-size:16px; transform: scale(1.05);">🛵</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
-
-      // Add Restaurant & Customer markers
-      L.marker(restaurantPos, { icon: restaurantIcon }).addTo(map).bindPopup("<b>The Royal Kitchen</b><br>Gandhi Chowk");
-      L.marker(customerPos, { icon: customerIcon }).addTo(map).bindPopup("<b>Your Delivery Location</b><br>Kedarpur");
-
-      // Draw dashed route polyline along Ambikapur corridor
-      const routePoints: [number, number][] = [
-        restaurantPos,
-        [23.1220, 83.1950],
-        [23.1200, 83.1975],
-        [23.1180, 83.2010],
-        customerPos,
-      ];
-
-      L.polyline(routePoints, {
-        color: "#ea580c",
-        weight: 4,
-        opacity: 0.8,
-        dashArray: "8, 8",
-      }).addTo(map);
-
-      // Add Moving Bike Marker (starts mid-route)
-      const bikeMarker = L.marker([23.1200, 83.1975], { icon: bikeIcon }).addTo(map);
-      bikeMarkerRef.current = bikeMarker;
-      leafletMapRef.current = map;
-
-      // Animate bike smoothly along route
-      let step = 0;
-      const interval = setInterval(() => {
-        if (!isMounted) return;
-        step = (step + 1) % routePoints.length;
-        bikeMarker.setLatLng(routePoints[step]);
-      }, 4000);
-
-      return () => {
-        clearInterval(interval);
-      };
-    });
-
-    return () => {
-      isMounted = false;
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -443,8 +340,8 @@ export default function OrderTrackingPage() {
         </div>
 
         {/* ================= 3. AMBIKAPUR INTERACTIVE OPENSTREETMAP / LEAFLET ================= */}
-        <div className="bg-white rounded-3xl overflow-hidden border border-[#EDE5DA] shadow-xs space-y-3">
-          <div className="px-5 pt-4 flex items-center justify-between">
+        <div className="bg-white rounded-3xl overflow-hidden border border-[#EDE5DA] shadow-xs space-y-3 p-4">
+          <div className="px-1 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Navigation className="w-4 h-4 text-orange-600" />
               <h4 className="text-xs font-black uppercase tracking-wider text-stone-900">
@@ -456,18 +353,14 @@ export default function OrderTrackingPage() {
             </span>
           </div>
 
-          {/* Leaflet Map Div */}
-          <div className="relative w-full h-56 bg-stone-100 border-y border-[#EDE5DA]">
-            <div ref={mapContainerRef} className="w-full h-full z-0" />
-
-            {/* Floating Live Badge over Map */}
-            <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-200 text-xs font-bold shadow-md flex items-center gap-1.5 z-10">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-stone-800">
-                {order.riderName || "Rider Ramesh"} is on the way (1.2 km)
-              </span>
-            </div>
-          </div>
+          {/* Leaflet Live Map Component */}
+          <AmbikapurDeliveryMap
+            restaurantName={order.restaurantName}
+            customerArea={order.deliveryArea}
+            orderNumber={order.orderNumber}
+            mode="customer"
+            height="270px"
+          />
 
           {/* Partner & Rider Contact Cards */}
           <div className="p-4 grid grid-cols-2 gap-2 text-xs">
