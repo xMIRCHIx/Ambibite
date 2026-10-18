@@ -1235,22 +1235,23 @@ export default function CustomerHome() {
 
                 <div className="mt-5 flex flex-col gap-2 w-full max-w-[260px]">
                   <Link
-                    href="/partner"
-                    className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-black py-2.5 rounded-xl transition shadow-md shadow-orange-600/20 flex items-center justify-center gap-1.5"
+                    href={`/order/${placedOrderDetails?.id || placedOrderDetails?.orderNumber || "demo-ord-1"}`}
+                    className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black py-3 rounded-xl transition shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
                   >
-                    <span>1. View in Restaurant Kitchen POS →</span>
+                    <Bike className="w-4 h-4" />
+                    <span>Track Live Order & View PIN →</span>
                   </Link>
                   <Link
-                    href="/admin"
-                    className="bg-slate-900 hover:bg-black text-white text-xs font-black py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5"
+                    href="/partner"
+                    className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5"
                   >
-                    <span>2. View in Admin Live Queue →</span>
+                    <span>Restaurant Kitchen POS →</span>
                   </Link>
                   <Link
                     href="/rider"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5"
+                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5"
                   >
-                    <span>3. View in Rider App →</span>
+                    <span>Rider Radar App →</span>
                   </Link>
                   <button
                     onClick={() => {

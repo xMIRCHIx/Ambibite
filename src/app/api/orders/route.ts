@@ -27,23 +27,87 @@ export interface LiveOrder {
   riderId?: string | null;
   createdAt: string;
   prepTimeMinutes: number;
+  // Delivery PIN & Rider Dispatch Extensions
+  deliveryPin: string;
+  distanceKm: number;
+  riderEarnings: number;
 }
 
 // In-memory store fallback for multi-tab sync
-let liveOrdersStore: LiveOrder[] = [];
+let liveOrdersStore: LiveOrder[] = [
+  {
+    id: "demo-ord-1",
+    orderNumber: "#ZB-4821",
+    customerName: "Rahul Verma",
+    customerPhone: "9826144551",
+    deliveryArea: "Kedarpur, Near City Mall, Ambikapur",
+    restaurantName: "The Royal Kitchen",
+    items: [
+      { name: "Special Chicken Dum Biryani (Handi)", qty: 1, price: 320, isVeg: false },
+      { name: "Extra Spiced Raita", qty: 1, price: 25, isVeg: true },
+    ],
+    itemTotal: 345,
+    deliveryFee: 35,
+    platformFee: 5,
+    totalAmount: 385,
+    paymentMethod: "COD",
+    paymentStatus: "pending",
+    status: "ready",
+    riderName: null,
+    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    prepTimeMinutes: 20,
+    deliveryPin: "5842",
+    distanceKm: 2.3,
+    riderEarnings: 42,
+  },
+  {
+    id: "demo-ord-2",
+    orderNumber: "#ZB-3904",
+    customerName: "Pooja Sharma",
+    customerPhone: "9425288112",
+    deliveryArea: "Ring Road East, Ambikapur",
+    restaurantName: "Burger Hub & Cafe",
+    items: [
+      { name: "Double Cheese Crunchy Burger", qty: 2, price: 140, isVeg: true },
+      { name: "Crispy Peri Peri Fries", qty: 1, price: 90, isVeg: true },
+    ],
+    itemTotal: 370,
+    deliveryFee: 30,
+    platformFee: 5,
+    totalAmount: 405,
+    paymentMethod: "UPI",
+    paymentStatus: "completed",
+    status: "ready",
+    riderName: null,
+    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    prepTimeMinutes: 15,
+    deliveryPin: "7193",
+    distanceKm: 1.8,
+    riderEarnings: 36,
+  },
+];
+
+// Helper to get or generate pin
+function getOrGeneratePin(orderId: string): string {
+  const existing = liveOrdersStore.find((o) => o.id === orderId);
+  if (existing?.deliveryPin) return existing.deliveryPin;
+  // Deterministic 4-digit pin fallback from id
+  let hash = 0;
+  for (let i = 0; i < orderId.length; i++) {
+    hash = (hash * 31 + orderId.charCodeAt(i)) % 9000;
+  }
+  return (1000 + Math.abs(hash)).toString();
+}
 
 export async function GET() {
   try {
-    // Fetch real orders with their order items from Supabase
     const { data: dbOrders, error } = await supabase
       .from("orders")
       .select("*, order_items(*)")
       .order("created_at", { ascending: false });
 
     if (!error && dbOrders && dbOrders.length > 0) {
-      // Map database schema to frontend LiveOrder format
       const formatted: LiveOrder[] = dbOrders.map((o) => {
-        // Map ready_for_pickup to ready for frontend consistency
         let frontendStatus: LiveOrder["status"] = "placed";
         if (o.status === "ready_for_pickup") frontendStatus = "ready";
         else if (["placed", "preparing", "ready", "rider_assigned", "picked_up", "delivered", "cancelled"].includes(o.status)) {
@@ -59,16 +123,20 @@ export async function GET() {
             }))
           : [{ name: "Selected Food Item", qty: 1, price: Number(o.item_total || 0), isVeg: false }];
 
+        const pin = getOrGeneratePin(o.id);
+        const dist = 2.1;
+        const earn = 38;
+
         return {
           id: o.id,
-          orderNumber: o.order_number || `#AB-${o.id.slice(0, 4)}`,
+          orderNumber: o.order_number || `#ZB-${o.id.slice(0, 4)}`,
           customerName: o.customer_name || "Ambikapur Customer",
           customerPhone: o.customer_phone || "9876543210",
           deliveryArea: o.delivery_address || "Ambikapur Center",
           restaurantName: "The Royal Kitchen",
           items,
           itemTotal: Number(o.item_total || 0),
-          deliveryFee: Number(o.delivery_fee || 20),
+          deliveryFee: Number(o.delivery_fee || 30),
           platformFee: Number(o.platform_fee || 5),
           totalAmount: Number(o.total_amount || 0),
           paymentMethod: (o.payment_method as "COD" | "UPI") || "COD",
@@ -78,7 +146,16 @@ export async function GET() {
           riderId: o.rider_id || null,
           createdAt: o.created_at,
           prepTimeMinutes: 20,
+          deliveryPin: pin,
+          distanceKm: dist,
+          riderEarnings: earn,
         };
+      });
+
+      // Synchronize in-memory store so memory references stay updated
+      formatted.forEach((f) => {
+        const idx = liveOrdersStore.findIndex((m) => m.id === f.id);
+        if (idx === -1) liveOrdersStore.push(f);
       });
 
       return NextResponse.json({
@@ -102,8 +179,13 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const orderNum = `#AB-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderNum = `#ZB-${Math.floor(1000 + Math.random() * 9000)}`;
     const newId = `ord-${Date.now()}`;
+
+    // Generate random 4-digit In-App Delivery PIN
+    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const distanceKm = Number((1.4 + Math.random() * 2.2).toFixed(1));
+    const riderEarnings = Math.max(35, 25 + Math.round((distanceKm - 1.0) * 7) + 5);
 
     const newOrder: LiveOrder = {
       id: newId,
@@ -114,25 +196,26 @@ export async function POST(req: Request) {
       restaurantName: body.restaurantName || "The Royal Kitchen",
       items: body.items || [],
       itemTotal: body.itemTotal || 0,
-      deliveryFee: body.deliveryFee ?? 20,
+      deliveryFee: body.deliveryFee ?? 35,
       platformFee: body.platformFee ?? 5,
       totalAmount: body.totalAmount || 0,
       paymentMethod: body.paymentMethod || "COD",
       paymentStatus: body.paymentMethod === "UPI" ? "completed" : "pending",
-      status: "placed", // Initial status: alerts Restaurant POS
+      status: "placed",
       riderName: null,
       createdAt: new Date().toISOString(),
       prepTimeMinutes: 20,
+      deliveryPin: generatedPin,
+      distanceKm,
+      riderEarnings,
     };
 
-    // Prepend to memory store so it's instantly available to all portals
     liveOrdersStore = [newOrder, ...liveOrdersStore];
 
-    // Attempt saving to Supabase Postgres as well
     try {
       const { data: dbCreated, error: dbErr } = await supabase.from("orders").insert({
         order_number: orderNum,
-        restaurant_id: "11111111-1111-1111-1111-111111111111", // The Royal Kitchen default
+        restaurant_id: "11111111-1111-1111-1111-111111111111",
         customer_name: newOrder.customerName,
         customer_phone: newOrder.customerPhone,
         delivery_address: newOrder.deliveryArea,
@@ -148,7 +231,6 @@ export async function POST(req: Request) {
       if (dbCreated && dbCreated[0]) {
         newOrder.id = dbCreated[0].id;
 
-        // Also save each item to order_items in Supabase
         if (body.items && body.items.length > 0) {
           const itemRows = body.items.map((it: any) => ({
             order_id: dbCreated[0].id,
@@ -181,13 +263,36 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, status, riderName } = body;
+    const { orderId, status, riderName, submittedPin, newPin } = body;
 
     if (!orderId) {
       return NextResponse.json({ success: false, error: "Missing orderId" }, { status: 400 });
     }
 
-    // Update in memory store
+    // 1. PIN Verification check when rider marks order as Delivered
+    if (status === "delivered") {
+      const targetOrder = liveOrdersStore.find(
+        (o) => o.id === orderId || o.orderNumber === orderId
+      );
+
+      if (targetOrder) {
+        // If pin provided, verify match
+        const cleanEntered = String(submittedPin || "").trim();
+        const expectedPin = String(targetOrder.deliveryPin || "").trim();
+
+        if (cleanEntered !== expectedPin) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Incorrect Delivery PIN! Customer screen shows ${expectedPin.slice(0, 1)}***. Please ask customer to read the 4-digit PIN.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // 2. Update order in memory
     let updatedOrder: LiveOrder | null = null;
     liveOrdersStore = liveOrdersStore.map((o) => {
       if (o.id === orderId || o.orderNumber === orderId) {
@@ -195,22 +300,24 @@ export async function PATCH(req: Request) {
           ...o,
           ...(status ? { status } : {}),
           ...(riderName !== undefined ? { riderName } : {}),
+          ...(newPin ? { deliveryPin: String(newPin) } : {}),
+          ...(status === "delivered" ? { paymentStatus: "completed" as const } : {}),
         };
         return updatedOrder;
       }
       return o;
     });
 
-    // Map status for Supabase database enum constraint
+    // 3. Map status for Supabase database enum
     let dbStatus = status;
     if (status === "ready") {
       dbStatus = "ready_for_pickup";
     }
 
-    // Attempt updating in Supabase
     try {
       const updatePayload: Record<string, any> = {};
       if (dbStatus) updatePayload.status = dbStatus;
+      if (status === "delivered") updatePayload.payment_status = "completed";
 
       await supabase
         .from("orders")
@@ -222,7 +329,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Order updated successfully",
+      message: status === "delivered" ? "PIN Verified! Order marked Delivered." : "Order updated successfully",
       order: updatedOrder,
     });
   } catch (error: any) {
