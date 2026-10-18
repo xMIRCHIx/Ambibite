@@ -57,6 +57,7 @@ interface RiderOrder {
   paymentStatus: "pending" | "completed";
   status: "placed" | "preparing" | "ready" | "rider_assigned" | "picked_up" | "delivered" | "cancelled";
   riderName: string | null;
+  riderId?: string | null;
   createdAt: string;
   prepTimeMinutes: number;
   deliveryPin: string;
@@ -277,20 +278,36 @@ export default function RiderDashboard() {
     return o.status === "ready" || (o.status === "rider_assigned" && !o.riderName);
   });
 
-  // Filter 2: My Active Deliveries
+  // Filter 2: My Active Deliveries (Persists across refresh/re-login/glitch)
+  const savedActiveId = typeof window !== "undefined" ? localStorage.getItem("zuppo_active_rider_order") : null;
   const myActiveOrders = liveOrders.filter((o) => {
     if (o.status === "delivered" || o.status === "cancelled") return false;
-    return (
-      (o.status === "picked_up" || o.status === "rider_assigned") &&
-      (o.riderName === currentRiderName || !o.riderName)
-    );
+    const isMine =
+      (o.riderId && currentUser?.id && o.riderId === currentUser.id) ||
+      (o.riderName && currentRiderName && o.riderName.includes(currentRiderName.split(" ")[0])) ||
+      (savedActiveId && (o.id === savedActiveId || o.orderNumber === savedActiveId)) ||
+      (!o.riderName && o.status === "picked_up");
+    return (o.status === "picked_up" || o.status === "rider_assigned") && isMine;
   });
+
+  // Auto-resume active delivery if phone glitched or rider logged back in
+  const hasAutoSwitched = useRef(false);
+  useEffect(() => {
+    if (!hasAutoSwitched.current && myActiveOrders.length > 0) {
+      setActiveTab("active");
+      hasAutoSwitched.current = true;
+    }
+  }, [myActiveOrders.length]);
 
   // Filter 3: Completed Today
   const completedOrders = liveOrders.filter((o) => o.status === "delivered");
 
-  // Accept Order from Radar
+  // Accept Order from Radar (Locks order to this rider)
   const handleAcceptOrder = async (orderId: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zuppo_active_rider_order", orderId);
+    }
+
     try {
       const res = await fetch("/api/orders", {
         method: "PATCH",
@@ -299,6 +316,7 @@ export default function RiderDashboard() {
           orderId,
           status: "picked_up",
           riderName: currentRiderName,
+          riderId: currentUser?.id || null,
         }),
       });
       const data = await res.json();
@@ -368,6 +386,9 @@ export default function RiderDashboard() {
       const data = await res.json();
 
       if (data.success) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("zuppo_active_rider_order");
+        }
         setDeliverySuccess(true);
         setCashCollected((c) =>
           activeDeliveryOrder.paymentMethod === "COD" ? c + activeDeliveryOrder.totalAmount : c

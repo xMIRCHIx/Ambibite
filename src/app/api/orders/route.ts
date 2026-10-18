@@ -126,9 +126,10 @@ export async function GET() {
             }))
           : [{ name: "Selected Food Item", qty: 1, price: Number(o.item_total || 0), isVeg: false }];
 
-        const pin = getOrGeneratePin(o.id);
-        const dist = 2.1;
-        const earn = 38;
+        const inStore = liveOrdersStore.find((m) => m.id === o.id || m.orderNumber === o.order_number);
+        const pin = inStore?.deliveryPin || getOrGeneratePin(o.id);
+        const dist = inStore?.distanceKm || 2.1;
+        const earn = inStore?.riderEarnings || 38;
 
         return {
           id: o.id,
@@ -145,20 +146,33 @@ export async function GET() {
           paymentMethod: (o.payment_method as "COD" | "UPI") || "COD",
           paymentStatus: (o.payment_status as "pending" | "completed") || "pending",
           status: frontendStatus,
-          riderName: o.rider_name || (frontendStatus === "picked_up" ? "Ramesh Kumar" : null),
-          riderId: o.rider_id || null,
+          riderName: o.rider_name || inStore?.riderName || (frontendStatus === "picked_up" ? "Ramesh Kumar" : null),
+          riderId: o.rider_id || inStore?.riderId || null,
           createdAt: o.created_at,
           prepTimeMinutes: 20,
           deliveryPin: pin,
           distanceKm: dist,
           riderEarnings: earn,
+          riderLat: inStore?.riderLat ?? (o as any).rider_lat,
+          riderLng: inStore?.riderLng ?? (o as any).rider_lng,
+          riderLocationUpdatedAt: inStore?.riderLocationUpdatedAt,
         };
       });
 
       // Synchronize in-memory store so memory references stay updated
       formatted.forEach((f) => {
         const idx = liveOrdersStore.findIndex((m) => m.id === f.id);
-        if (idx === -1) liveOrdersStore.push(f);
+        if (idx === -1) {
+          liveOrdersStore.push(f);
+        } else {
+          // Merge keeping live GPS state intact
+          liveOrdersStore[idx] = {
+            ...f,
+            riderLat: liveOrdersStore[idx].riderLat ?? f.riderLat,
+            riderLng: liveOrdersStore[idx].riderLng ?? f.riderLng,
+            riderLocationUpdatedAt: liveOrdersStore[idx].riderLocationUpdatedAt ?? f.riderLocationUpdatedAt,
+          };
+        }
       });
 
       return NextResponse.json({
@@ -266,7 +280,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, status, riderName, submittedPin, newPin, riderLat, riderLng } = body;
+    const { orderId, status, riderName, riderId, submittedPin, newPin, riderLat, riderLng } = body;
 
     if (!orderId) {
       return NextResponse.json({ success: false, error: "Missing orderId" }, { status: 400 });
@@ -303,6 +317,7 @@ export async function PATCH(req: Request) {
           ...o,
           ...(status ? { status } : {}),
           ...(riderName !== undefined ? { riderName } : {}),
+          ...(riderId !== undefined ? { riderId } : {}),
           ...(newPin ? { deliveryPin: String(newPin) } : {}),
           ...(status === "delivered" ? { paymentStatus: "completed" as const } : {}),
           ...(riderLat !== undefined ? { riderLat: Number(riderLat) } : {}),
@@ -324,6 +339,8 @@ export async function PATCH(req: Request) {
       const updatePayload: Record<string, any> = {};
       if (dbStatus) updatePayload.status = dbStatus;
       if (status === "delivered") updatePayload.payment_status = "completed";
+      if (riderName !== undefined) updatePayload.rider_name = riderName;
+      if (riderId !== undefined) updatePayload.rider_id = riderId;
 
       await supabase
         .from("orders")
